@@ -17,6 +17,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   async function loadProjects() {
     setLoading(true);
@@ -42,6 +43,24 @@ export default function HomePageClient({ initialProjects, initialError }) {
     router.push(`/projects/${project.id}`);
   }
 
+  async function handleDemo() {
+    setDemoLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/demo", { method: "POST" });
+      const json = await res.json();
+      if (res.ok) {
+        router.push(`/projects/${json.data.id}`);
+      } else {
+        setError(json.error || "创建演示项目失败");
+      }
+    } catch (err) {
+      setError("网络连接失败: " + err.message);
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -56,6 +75,13 @@ export default function HomePageClient({ initialProjects, initialError }) {
             className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
           >
             {loading ? "刷新中..." : "刷新"}
+          </button>
+          <button
+            onClick={handleDemo}
+            disabled={demoLoading}
+            className="bg-purple-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+          >
+            {demoLoading ? "创建中..." : "创建演示项目"}
           </button>
           <button
             onClick={() => setShowCreate(true)}
