@@ -108,6 +108,70 @@ export default function HomePageClient({ initialProjects, initialError }) {
         </div>
       )}
 
+      {/* 使用场景 */}
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          适合 AI 视频团队的使用场景
+        </h3>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-white border rounded-lg px-4 py-3.5 flex items-start gap-3">
+            <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
+              1
+            </span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">资产统一管理</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                剧本、角色、场景、分镜、提示词全部结构化存储，一处修改全局同步。
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border rounded-lg px-4 py-3.5 flex items-start gap-3">
+            <span className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center text-sm font-bold shrink-0">
+              2
+            </span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">协作信息对齐</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                统一提示词和设定文档，减少多人协作中的信息丢失和沟通成本。
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border rounded-lg px-4 py-3.5 flex items-start gap-3">
+            <span className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-bold shrink-0">
+              3
+            </span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">新人快速上手</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                标准化的剧本拆解到分镜生产流程，让新人按规范步骤完成 AI 视频制作。
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border rounded-lg px-4 py-3.5 flex items-start gap-3">
+            <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-sm font-bold shrink-0">
+              4
+            </span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">资产库沉淀</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                角色设定和场景模板可跨项目复用，逐步沉淀公司自己的数字资产库。
+              </p>
+            </div>
+          </div>
+          <div className="bg-white border rounded-lg px-4 py-3.5 flex items-start gap-3 md:col-span-2 lg:col-span-1">
+            <span className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-sm font-bold shrink-0">
+              5
+            </span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">交付效率提升</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                从剧本到成片全链路在线化，减少重复劳动，提高团队整体交付效率。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 主内容区 */}
       {loading && projects.length === 0 ? (
         <div className="text-center py-16">
