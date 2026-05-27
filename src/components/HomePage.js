@@ -18,6 +18,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadProjects() {
     setLoading(true);
@@ -41,6 +43,28 @@ export default function HomePageClient({ initialProjects, initialError }) {
   function handleCreate(project) {
     setShowCreate(false);
     router.push(`/projects/${project.id}`);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/projects/${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (res.ok) {
+        setDeleteTarget(null);
+        await loadProjects();
+      } else {
+        setError(json.error || "删除失败");
+        setDeleteTarget(null);
+      }
+    } catch (err) {
+      setError("网络连接失败: " + err.message);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleDemo() {
@@ -180,13 +204,25 @@ export default function HomePageClient({ initialProjects, initialError }) {
         </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-16">
-          <div className="text-gray-400 text-lg mb-4">暂无项目，请新建第一个项目</div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700"
-          >
-            新建项目
-          </button>
+          <div className="text-gray-400 text-lg mb-2">暂无项目</div>
+          <p className="text-sm text-gray-400 mb-6">
+            请创建演示项目体验完整流程，或新建一个空白项目
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={handleDemo}
+              disabled={demoLoading}
+              className="bg-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+            >
+              {demoLoading ? "创建中..." : "创建演示项目"}
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700"
+            >
+              新建项目
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -194,10 +230,22 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div
               key={p.id}
               onClick={() => router.push(`/projects/${p.id}`)}
-              className="bg-white border rounded-lg p-5 cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-white border rounded-lg p-5 cursor-pointer hover:shadow-md transition-shadow group relative"
             >
+              {/* Delete button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteTarget(p);
+                }}
+                className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all"
+                title="删除项目"
+              >
+                &times;
+              </button>
+
               <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold text-gray-900 truncate flex-1 mr-2">
+                <h3 className="font-semibold text-gray-900 truncate flex-1 mr-6">
                   {p.title}
                 </h3>
                 <span
@@ -231,6 +279,41 @@ export default function HomePageClient({ initialProjects, initialError }) {
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 删除确认弹窗 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !deleting && setDeleteTarget(null)}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">删除项目</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              确定要删除项目「{deleteTarget.title}」吗？
+            </p>
+            <p className="text-xs text-red-500 mb-6">
+              此操作将同时删除该项目下的所有角色、场景和分镜数据，不可恢复。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "删除中..." : "确认删除"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

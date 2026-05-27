@@ -45,6 +45,13 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
     const supabase = getServiceClient();
+
+    // 级联删除关联数据：角色、场景、分镜
+    await supabase.from("shots").delete().eq("project_id", id);
+    await supabase.from("scenes").delete().eq("project_id", id);
+    await supabase.from("characters").delete().eq("project_id", id);
+    await supabase.from("ai_outputs").delete().eq("project_id", id);
+
     const { error } = await supabase
       .from("projects")
       .delete()
