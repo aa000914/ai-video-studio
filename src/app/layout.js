@@ -11,7 +11,7 @@ export default function RootLayout({ children }) {
     <html lang="zh-CN">
       <body className="h-screen flex bg-gray-50">
         <Sidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-hidden">{children}</main>
       </body>
     </html>
   );

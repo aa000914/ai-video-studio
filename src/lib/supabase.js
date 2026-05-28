@@ -18,19 +18,28 @@ const CACHE_TTL = 60000; // 1 minute
 // When table has rows, actual columns are discovered from row keys
 // These ensure inserts work even when tables are empty
 const FALLBACK_COLUMNS = {
+  plans: new Set([
+    "id", "project_id", "summary", "art_style", "content_type",
+    "mode", "aspect_ratio", "episode_count", "storyboard_count",
+    "music_style", "narration_style", "script_text", "created_at",
+  ]),
   characters: new Set([
     "id", "project_id", "name", "role", "age", "personality",
-    "appearance", "costume", "prompt", "reference_url", "notes", "created_at",
+    "appearance", "costume", "prompt", "prohibited_changes",
+    "prompt_front", "prompt_back", "prompt_overhead",
+    "subject_image_url", "reference_url", "notes", "created_at",
   ]),
   scenes: new Set([
     "id", "project_id", "name", "location", "time_period",
-    "description", "lighting", "style", "prompt", "reference_url",
-    "notes", "created_at",
+    "description", "lighting", "style", "prompt", "prohibited_elements",
+    "prompt_front", "prompt_back", "prompt_overhead",
+    "subject_image_url", "reference_url", "notes", "created_at",
   ]),
   shots: new Set([
     "id", "project_id", "shot_number", "duration", "scene_name",
     "characters", "visual", "camera", "dialogue", "sound",
-    "image_prompt", "video_prompt", "status", "created_at",
+    "image_prompt", "video_prompt", "refined_image_prompt", "refined_video_prompt",
+    "status", "created_at",
   ]),
   projects: new Set([
     "id", "title", "type", "platform", "status", "description",
