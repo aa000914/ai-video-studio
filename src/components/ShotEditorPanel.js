@@ -36,6 +36,8 @@ export default function ShotEditorPanel({ projectId }) {
   const [generatingImg, setGeneratingImg] = useState(false);
   const [generatedImgUrl, setGeneratedImgUrl] = useState("");
   const [imgLoadError, setImgLoadError] = useState(false);
+  const [imgFallback, setImgFallback] = useState(0); // 0=new API, 1=old API, 2=both failed
+  const [genSeed, setGenSeed] = useState(null);
 
   const selected = shots[selectedIdx];
   const totalShots = shots.length;
@@ -159,6 +161,11 @@ export default function ShotEditorPanel({ projectId }) {
     finally { setPolishing(false); }
   }
 
+  function truncatePrompt(text, maxLen) {
+    if (!text) return "";
+    return text.length > maxLen ? text.slice(0, maxLen) : text;
+  }
+
   async function handleGenerateImage() {
     if (!selected) return;
     const promptText = selected.refined_image_prompt || selected.image_prompt;
@@ -170,24 +177,45 @@ export default function ShotEditorPanel({ projectId }) {
     setGeneratingImg(true);
     setGeneratedImgUrl("");
     setImgLoadError(false);
+    setImgFallback(0);
     setMessage("");
 
-    try {
-      const encoded = encodeURIComponent(promptText.trim());
-      const { width, height } = dims;
-      const seed = Date.now();
-      const url = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&model=flux&seed=${seed}`;
-      setGeneratedImgUrl(url);
-    } catch (err) {
-      setMessage("生图失败: " + err.message);
-    } finally {
-      setGeneratingImg(false);
-    }
+    const shortPrompt = truncatePrompt(promptText.trim(), 600);
+    const encoded = encodeURIComponent(shortPrompt);
+    const { width, height } = dims;
+    const seed = Date.now();
+    setGenSeed(seed);
+    const params = `width=${width}&height=${height}&seed=${seed}`;
+    const url = `https://gen.pollinations.ai/image/${encoded}?${params}`;
+    setGeneratedImgUrl(url);
+    setGeneratingImg(false);
   }
 
   function handleImgError() {
-    setImgLoadError(true);
+    if (imgFallback === 0) {
+      // New API failed, try old API
+      setImgFallback(1);
+      const promptText = (selected?.refined_image_prompt || selected?.image_prompt || "").trim();
+      const shortPrompt = truncatePrompt(promptText, 600);
+      const encoded = encodeURIComponent(shortPrompt);
+      const { width, height } = dims;
+      const params = `width=${width}&height=${height}&seed=${genSeed || Date.now()}`;
+      const url = `https://image.pollinations.ai/prompt/${encoded}?${params}`;
+      setGeneratedImgUrl(url);
+    } else {
+      // Both failed
+      setImgFallback(2);
+      setImgLoadError(true);
+      setGeneratedImgUrl("");
+    }
+  }
+
+  function handleRegenerateImage() {
+    setImgLoadError(false);
+    setImgFallback(0);
+    setGenSeed(null);
     setGeneratedImgUrl("");
+    handleGenerateImage();
   }
 
   async function copyText(text, field) {
@@ -254,7 +282,9 @@ export default function ShotEditorPanel({ projectId }) {
                 <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-blue-50/50 min-h-[180px] flex flex-col items-center justify-center">
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
                   <p className="text-sm text-blue-600 font-medium">正在生成分镜图...</p>
-                  <p className="text-xs text-blue-400 mt-1">调用 Pollinations 免费演示 API</p>
+                  <p className="text-xs text-blue-400 mt-1">
+                    {imgFallback === 0 ? "调用 Pollinations gen API" : "fallback 到旧接口重试"}
+                  </p>
                 </div>
               ) : generatedImgUrl && !imgLoadError ? (
                 <div className="rounded-xl overflow-hidden bg-gray-100 min-h-[180px] flex flex-col items-center justify-center relative">
@@ -265,35 +295,52 @@ export default function ShotEditorPanel({ projectId }) {
                     onError={handleImgError}
                     onLoad={() => setImgLoadError(false)}
                   />
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <a
-                      href={generatedImgUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border"
-                    >
+                  <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
+                    <a href={generatedImgUrl} target="_blank" rel="noopener noreferrer"
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       打开原图
                     </a>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(generatedImgUrl); setMessage("图片链接已复制"); setTimeout(() => setMessage(""), 2000); }}
-                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border"
-                    >
+                    <button onClick={() => { navigator.clipboard.writeText(generatedImgUrl); setMessage("图片链接已复制"); setTimeout(() => setMessage(""), 2000); }}
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       复制图片链接
+                    </button>
+                    <button onClick={() => copyText(selected.refined_image_prompt || selected.image_prompt, "previewImage")}
+                      className="bg-white/90 text-blue-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                      {copiedField === "previewImage" ? "已复制" : "复制图片提示词"}
+                    </button>
+                    <button onClick={handleRegenerateImage}
+                      className="bg-white/90 text-amber-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                      重新生成
                     </button>
                   </div>
                   <div className="absolute bottom-2 left-2 bg-white/80 text-amber-600 px-2 py-0.5 rounded text-xs">
                     免费演示生图，质量和稳定性仅供测试
                   </div>
                 </div>
-              ) : imgLoadError ? (
-                <div className="border-2 border-dashed border-red-300 rounded-xl p-8 text-center bg-red-50 min-h-[180px] flex flex-col items-center justify-center">
-                  <div className="text-red-400 text-3xl mb-3">⚠️</div>
-                  <h4 className="text-sm font-medium text-red-500 mb-1">图片加载失败</h4>
-                  <p className="text-xs text-red-400 mb-3">Pollinations API 可能暂时不可用</p>
-                  <button onClick={handleGenerateImage}
-                    className="border border-red-300 text-red-600 px-4 py-1.5 rounded-lg text-xs hover:bg-red-50">
-                    重试
-                  </button>
+              ) : imgLoadError && imgFallback >= 2 ? (
+                <div className="border-2 border-dashed border-red-300 rounded-xl p-6 text-center bg-red-50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="text-red-400 text-3xl mb-2">⚠️</div>
+                  <h4 className="text-sm font-medium text-red-500 mb-1">生成失败</h4>
+                  <p className="text-xs text-red-400 mb-3">两种接口均不可用，请尝试以下操作：</p>
+                  <div className="flex flex-wrap gap-2 justify-center mb-3">
+                    <button onClick={() => copyText(selected.refined_image_prompt || selected.image_prompt, "errorCopyPrompt")}
+                      className="border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg text-xs hover:bg-blue-50 bg-white">
+                      {copiedField === "errorCopyPrompt" ? "已复制提示词" : "复制图片提示词"}
+                    </button>
+                    <button onClick={handleRegenerateImage}
+                      className="border border-amber-300 text-amber-600 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-50 bg-white">
+                      重新生成
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    可将提示词复制到即梦、豆包、可灵、Midjourney、Stable Diffusion 等工具生图
+                  </p>
+                </div>
+              ) : imgFallback === 1 ? (
+                <div className="border-2 border-dashed border-amber-300 rounded-xl p-8 text-center bg-amber-50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-amber-600 font-medium">新接口失败，正在尝试旧接口...</p>
+                  <p className="text-xs text-amber-400 mt-1">请稍候</p>
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 min-h-[180px] flex flex-col items-center justify-center">
