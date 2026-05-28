@@ -31,8 +31,23 @@ export default function ShotEditorPanel({ projectId }) {
   const [resolution, setResolution] = useState("720P");
   const [videoDuration, setVideoDuration] = useState("5s");
 
+  // Free demo image generation (Pollinations)
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [generatingImg, setGeneratingImg] = useState(false);
+  const [generatedImgUrl, setGeneratedImgUrl] = useState("");
+  const [imgLoadError, setImgLoadError] = useState(false);
+
   const selected = shots[selectedIdx];
   const totalShots = shots.length;
+
+  // Dimension mapping
+  const RATIO_DIMS = {
+    "9:16": { width: 720, height: 1280 },
+    "16:9": { width: 1280, height: 720 },
+    "3:4": { width: 768, height: 1024 },
+    "4:3": { width: 1024, height: 768 },
+  };
+  const dims = RATIO_DIMS[aspectRatio] || RATIO_DIMS["16:9"];
 
   // Credit calculation
   const imageCredits = totalShots * 2;
@@ -41,7 +56,21 @@ export default function ShotEditorPanel({ projectId }) {
   const videoCredits = totalShots * videoRate * durationMultiplier;
   const totalCredits = imageCredits + videoCredits;
 
-  useEffect(() => { loadShots(); }, [projectId]);
+  useEffect(() => { loadShots(); loadPlanAspect(); }, [projectId]);
+
+  // Reset image when switching shots
+  useEffect(() => {
+    setGeneratedImgUrl("");
+    setImgLoadError(false);
+  }, [selectedIdx]);
+
+  async function loadPlanAspect() {
+    try {
+      const res = await fetch(`/api/plans?project_id=${projectId}`);
+      const json = await res.json();
+      if (json.data?.aspect_ratio) setAspectRatio(json.data.aspect_ratio);
+    } catch { /* keep default */ }
+  }
 
   async function loadShots() {
     setLoading(true);
@@ -130,6 +159,37 @@ export default function ShotEditorPanel({ projectId }) {
     finally { setPolishing(false); }
   }
 
+  async function handleGenerateImage() {
+    if (!selected) return;
+    const promptText = selected.refined_image_prompt || selected.image_prompt;
+    if (!promptText || !promptText.trim()) {
+      setMessage("请先填写图片提示词");
+      setTimeout(() => setMessage(""), 2000);
+      return;
+    }
+    setGeneratingImg(true);
+    setGeneratedImgUrl("");
+    setImgLoadError(false);
+    setMessage("");
+
+    try {
+      const encoded = encodeURIComponent(promptText.trim());
+      const { width, height } = dims;
+      const seed = Date.now();
+      const url = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&model=flux&seed=${seed}`;
+      setGeneratedImgUrl(url);
+    } catch (err) {
+      setMessage("生图失败: " + err.message);
+    } finally {
+      setGeneratingImg(false);
+    }
+  }
+
+  function handleImgError() {
+    setImgLoadError(true);
+    setGeneratedImgUrl("");
+  }
+
   async function copyText(text, field) {
     try {
       await navigator.clipboard.writeText(text || "");
@@ -189,12 +249,59 @@ export default function ShotEditorPanel({ projectId }) {
                 </span>
               </div>
 
-              {/* Image preview placeholder */}
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 min-h-[180px] flex flex-col items-center justify-center">
-                <div className="text-gray-300 text-4xl mb-3">🖼️</div>
-                <h4 className="text-sm font-medium text-gray-400 mb-1">分镜图预览区</h4>
-                <p className="text-xs text-gray-300">后续可接入即梦/可灵/Seedance 等模型</p>
-              </div>
+              {/* Image preview area */}
+              {generatingImg ? (
+                <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-blue-50/50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-blue-600 font-medium">正在生成分镜图...</p>
+                  <p className="text-xs text-blue-400 mt-1">调用 Pollinations 免费演示 API</p>
+                </div>
+              ) : generatedImgUrl && !imgLoadError ? (
+                <div className="rounded-xl overflow-hidden bg-gray-100 min-h-[180px] flex flex-col items-center justify-center relative">
+                  <img
+                    src={generatedImgUrl}
+                    alt={`Shot ${selected.shot_number} preview`}
+                    className="max-w-full max-h-[400px] object-contain"
+                    onError={handleImgError}
+                    onLoad={() => setImgLoadError(false)}
+                  />
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <a
+                      href={generatedImgUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border"
+                    >
+                      打开原图
+                    </a>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(generatedImgUrl); setMessage("图片链接已复制"); setTimeout(() => setMessage(""), 2000); }}
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border"
+                    >
+                      复制图片链接
+                    </button>
+                  </div>
+                  <div className="absolute bottom-2 left-2 bg-white/80 text-amber-600 px-2 py-0.5 rounded text-xs">
+                    免费演示生图，质量和稳定性仅供测试
+                  </div>
+                </div>
+              ) : imgLoadError ? (
+                <div className="border-2 border-dashed border-red-300 rounded-xl p-8 text-center bg-red-50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="text-red-400 text-3xl mb-3">⚠️</div>
+                  <h4 className="text-sm font-medium text-red-500 mb-1">图片加载失败</h4>
+                  <p className="text-xs text-red-400 mb-3">Pollinations API 可能暂时不可用</p>
+                  <button onClick={handleGenerateImage}
+                    className="border border-red-300 text-red-600 px-4 py-1.5 rounded-lg text-xs hover:bg-red-50">
+                    重试
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="text-gray-300 text-4xl mb-3">🖼️</div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-1">分镜图预览区</h4>
+                  <p className="text-xs text-gray-300">点击右侧"生成分镜图预览"使用免费演示生图</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="场景" value={selected.scene_name} />
@@ -266,6 +373,25 @@ export default function ShotEditorPanel({ projectId }) {
                   className="mt-1.5 w-full border border-blue-200 text-blue-600 py-1.5 rounded text-xs hover:bg-blue-50 disabled:opacity-50">
                   {polishing ? "AI润色中..." : "AI 润色图片提示词"}
                 </button>
+
+                {/* Free demo image generation */}
+                <div className="border-t pt-3 mt-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2">
+                    <p className="text-xs text-amber-600 leading-relaxed">
+                      免费演示生图，质量和稳定性仅供测试。
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleGenerateImage}
+                    disabled={generatingImg}
+                    className="w-full bg-amber-500 text-white py-1.5 rounded text-xs font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                  >
+                    {generatingImg ? "生成中..." : "🖼 生成分镜图预览"}
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1 text-center">
+                    由 Pollinations AI 免费提供
+                  </p>
+                </div>
               </div>
 
               {/* Video prompt */}
@@ -284,6 +410,9 @@ export default function ShotEditorPanel({ projectId }) {
                   className="mt-1.5 w-full border border-purple-200 text-purple-600 py-1.5 rounded text-xs hover:bg-purple-50 disabled:opacity-50">
                   {polishing ? "AI润色中..." : "AI 润色视频提示词"}
                 </button>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  待接入视频模型（Seedance / 可灵 / Kling）
+                </p>
               </div>
 
               {/* Refined prompts */}
