@@ -9,8 +9,8 @@ export default function Sidebar() {
   return (
     <aside className="w-56 bg-gray-900 text-gray-300 flex flex-col shrink-0">
       <div className="p-5 border-b border-gray-800">
-        <h1 className="text-white font-bold text-lg">AI视频工作台</h1>
-        <p className="text-gray-500 text-xs mt-1">V1 内部演示版</p>
+        <h1 className="text-white font-bold text-lg">🎬 AI视频工作台</h1>
+        <p className="text-gray-500 text-xs mt-1">老板演示版 V2</p>
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
