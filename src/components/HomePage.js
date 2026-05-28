@@ -89,8 +89,10 @@ export default function HomePageClient({ initialProjects, initialError }) {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">项目列表</h2>
-          <p className="text-sm text-gray-500 mt-1">从剧本到分镜提示词，一站式管理 AI 视频生产流程。</p>
+          <h2 className="text-2xl font-bold text-gray-900">AI视频生产工作台</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            从剧本到分镜提示词，一站式管理 AI 视频生产流程
+          </p>
         </div>
         <div className="flex gap-3">
           <button

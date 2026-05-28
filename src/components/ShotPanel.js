@@ -17,6 +17,13 @@ const FIELDS = [
   { key: "status", label: "状态" },
 ];
 
+const STATUS_STYLES = {
+  "已通过": "bg-green-100 text-green-700",
+  "已生成视频": "bg-purple-100 text-purple-700",
+  "已生成图": "bg-blue-100 text-blue-700",
+  "需重做": "bg-red-100 text-red-700",
+};
+
 export default function ShotPanel({ projectId }) {
   const [shots, setShots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,40 +140,35 @@ export default function ShotPanel({ projectId }) {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-gray-100 text-left">
-                <th className="p-2 border text-xs w-12">#</th>
+                <th className="p-2 border text-xs w-10">#</th>
+                <th className="p-2 border text-xs w-12">时长</th>
                 <th className="p-2 border text-xs">场景</th>
-                <th className="p-2 border text-xs">时长</th>
-                <th className="p-2 border text-xs">角色</th>
+                <th className="p-2 border text-xs">人物</th>
                 <th className="p-2 border text-xs">画面</th>
-                <th className="p-2 border text-xs">镜头</th>
-                <th className="p-2 border text-xs">状态</th>
-                <th className="p-2 border text-xs w-20">操作</th>
+                <th className="p-2 border text-xs">运镜</th>
+                <th className="p-2 border text-xs">台词</th>
+                <th className="p-2 border text-xs w-16">状态</th>
+                <th className="p-2 border text-xs w-16">操作</th>
               </tr>
             </thead>
             <tbody>
               {shots.map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="p-2 border text-gray-500">{s.shot_number}</td>
-                  <td className="p-2 border">{s.scene_name}</td>
-                  <td className="p-2 border">{s.duration}</td>
+                  <td className="p-2 border text-gray-500 text-center">{s.shot_number}</td>
+                  <td className="p-2 border text-xs text-center">{s.duration}</td>
+                  <td className="p-2 border text-xs">{s.scene_name}</td>
                   <td className="p-2 border text-xs">{s.characters}</td>
-                  <td className="p-2 border text-xs max-w-xs truncate">
+                  <td className="p-2 border text-xs max-w-[200px] truncate" title={s.visual}>
                     {s.visual}
                   </td>
                   <td className="p-2 border text-xs">{s.camera}</td>
+                  <td className="p-2 border text-xs max-w-[150px] truncate" title={s.dialogue}>
+                    {s.dialogue || "—"}
+                  </td>
                   <td className="p-2 border">
                     <span
-                      className={`text-xs px-2 py-0.5 rounded ${
-                        s.status === "已通过"
-                          ? "bg-green-100 text-green-700"
-                          : s.status === "已生成图"
-                            ? "bg-blue-100 text-blue-700"
-                            : s.status === "已生成视频"
-                              ? "bg-purple-100 text-purple-700"
-                              : s.status === "需重做"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-600"
-                      }`}
+                      className={"text-xs px-2 py-0.5 rounded font-medium " +
+                        (STATUS_STYLES[s.status] || "bg-gray-100 text-gray-600")}
                     >
                       {s.status || "待生成"}
                     </span>

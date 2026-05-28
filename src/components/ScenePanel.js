@@ -129,48 +129,71 @@ export default function ScenePanel({ projectId }) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {scenes.map((s) => (
-            <div key={s.id} className="bg-white border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">{s.name}</h4>
-                  <p className="text-xs text-gray-500">
-                    {s.location} {s.time_period && `· ${s.time_period}`}
-                  </p>
+            <div key={s.id} className="bg-white border rounded-lg p-5 hover:shadow-sm transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold">
+                    🏛
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{s.name}</h4>
+                    <p className="text-xs text-gray-500">
+                      {s.location}{s.time_period && ` · ${s.time_period}`}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      setEditItem(s);
-                      setShowAdd(true);
-                    }}
+                    onClick={() => { setEditItem(s); setShowAdd(true); }}
                     className="text-blue-600 text-xs hover:underline"
-                  >
-                    编辑
-                  </button>
+                  >编辑</button>
                   <button
                     onClick={() => handleDelete(s.id)}
-                    className="text-red-600 text-xs hover:underline ml-2"
-                  >
-                    删除
-                  </button>
+                    className="text-red-600 text-xs hover:underline"
+                  >删除</button>
                 </div>
               </div>
-              {s.description && (
-                <p className="text-sm text-gray-600 mt-2">{s.description}</p>
-              )}
-              <div className="flex gap-3 mt-2 text-xs text-gray-500">
-                {s.style && <span>风格: {s.style}</span>}
-                {s.lighting && <span>光线: {s.lighting}</span>}
+
+              <div className="space-y-2 text-sm">
+                {s.description && (
+                  <div className="flex gap-2">
+                    <span className="text-gray-400 shrink-0 w-10 text-xs">空间</span>
+                    <span className="text-gray-700">{s.description}</span>
+                  </div>
+                )}
+                {s.lighting && (
+                  <div className="flex gap-2">
+                    <span className="text-gray-400 shrink-0 w-10 text-xs">光线</span>
+                    <span className="text-gray-700">{s.lighting}</span>
+                  </div>
+                )}
+                {s.style && (
+                  <div className="flex gap-2">
+                    <span className="text-gray-400 shrink-0 w-10 text-xs">风格</span>
+                    <span className="text-gray-700">{s.style}</span>
+                  </div>
+                )}
               </div>
+
               {s.prompt && (
-                <p className="text-xs text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                  提示词：{s.prompt}
-                </p>
+                <div className="mt-3 bg-green-50 border border-green-100 rounded-lg p-3">
+                  <p className="text-xs font-medium text-green-700 mb-1">🎬 场景提示词</p>
+                  <p className="text-xs text-green-800 leading-relaxed">{s.prompt}</p>
+                </div>
               )}
+
               {s.prohibited_elements && (
-                <p className="text-xs text-red-400 mt-1 bg-red-50 p-2 rounded">
-                  禁止元素：{s.prohibited_elements}
-                </p>
+                <div className="mt-2 bg-red-50 border border-red-100 rounded-lg p-3">
+                  <p className="text-xs font-medium text-red-700 mb-1">🚫 禁止元素</p>
+                  <p className="text-xs text-red-800 leading-relaxed">{s.prohibited_elements}</p>
+                </div>
+              )}
+
+              {s.notes && (
+                <div className="mt-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <p className="text-xs font-medium text-amber-700 mb-1">📝 备注</p>
+                  <p className="text-xs text-amber-800 leading-relaxed">{s.notes}</p>
+                </div>
               )}
             </div>
           ))}
