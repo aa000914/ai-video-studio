@@ -80,7 +80,8 @@ export default function ExportPanel({ project, projectId }) {
         md += `| 性格 | ${c.personality || "—"} |\n`;
         if (c.appearance) md += `| 外貌描述 | ${c.appearance} |\n`;
         if (c.costume) md += `| 服装设定 | ${c.costume} |\n`;
-        if (c.prompt) md += `| AI 生图提示词 | \`${c.prompt}\` |\n`;
+        if (c.prompt) md += `| 角色一致性提示词 | \`${c.prompt}\` |\n`;
+        if (c.prohibited_changes) md += `| 禁止变化点 | ${c.prohibited_changes} |\n`;
         if (c.notes) md += `| 备注 | ${c.notes} |\n`;
         md += `\n`;
       });
@@ -101,7 +102,8 @@ export default function ExportPanel({ project, projectId }) {
         if (s.description) md += `| 场景描述 | ${s.description} |\n`;
         if (s.lighting) md += `| 灯光方案 | ${s.lighting} |\n`;
         if (s.style) md += `| 风格 | ${s.style} |\n`;
-        if (s.prompt) md += `| AI 生图提示词 | \`${s.prompt}\` |\n`;
+        if (s.prompt) md += `| 场景提示词 | \`${s.prompt}\` |\n`;
+        if (s.prohibited_elements) md += `| 禁止元素 | ${s.prohibited_elements} |\n`;
         if (s.notes) md += `| 备注 | ${s.notes} |\n`;
         md += `\n`;
       });

@@ -1,5 +1,10 @@
--- AI视频生产工作台 V1 数据库结构
+-- AI视频生产工作台 V2 数据库结构
 -- 在 Supabase SQL Editor 中执行此文件
+
+-- V1 → V2 迁移（如果已有 V1 数据库，执行以下 ALTER 语句即可）：
+-- ALTER TABLE characters ADD COLUMN IF NOT EXISTS prohibited_changes TEXT;
+-- ALTER TABLE scenes ADD COLUMN IF NOT EXISTS space_description TEXT;
+-- ALTER TABLE scenes ADD COLUMN IF NOT EXISTS prohibited_elements TEXT;
 
 -- 项目表
 CREATE TABLE projects (
@@ -25,6 +30,7 @@ CREATE TABLE characters (
   costume TEXT,
   prompt TEXT,
   reference_url TEXT,
+  prohibited_changes TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -41,6 +47,8 @@ CREATE TABLE scenes (
   style TEXT,
   prompt TEXT,
   reference_url TEXT,
+  space_description TEXT,
+  prohibited_elements TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase";
+import { getServiceClient, safePayload } from "@/lib/supabase";
 
 export async function GET(req) {
   try {
@@ -27,9 +27,10 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const supabase = getServiceClient();
+    const clean = await safePayload("characters", body);
     const { data, error } = await supabase
       .from("characters")
-      .insert(body)
+      .insert(clean)
       .select()
       .single();
 

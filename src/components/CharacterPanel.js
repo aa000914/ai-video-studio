@@ -5,12 +5,13 @@ import EditModal from "./EditModal";
 
 const FIELDS = [
   { key: "name", label: "角色名称" },
-  { key: "role", label: "角色定位" },
+  { key: "role", label: "身份" },
   { key: "age", label: "年龄" },
   { key: "personality", label: "性格" },
   { key: "appearance", label: "外貌描述", type: "textarea" },
   { key: "costume", label: "服装", type: "textarea" },
-  { key: "prompt", label: "AI生图提示词", type: "textarea" },
+  { key: "prompt", label: "角色一致性提示词", type: "textarea" },
+  { key: "prohibited_changes", label: "禁止变化点", type: "textarea" },
   { key: "notes", label: "备注", type: "textarea" },
 ];
 
@@ -160,9 +161,17 @@ export default function CharacterPanel({ projectId }) {
               {c.appearance && (
                 <p className="text-sm text-gray-500 mt-1">{c.appearance}</p>
               )}
+              {c.costume && (
+                <p className="text-sm text-gray-500 mt-1">服装：{c.costume}</p>
+              )}
               {c.prompt && (
                 <p className="text-xs text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                  {c.prompt}
+                  提示词：{c.prompt}
+                </p>
+              )}
+              {c.prohibited_changes && (
+                <p className="text-xs text-red-400 mt-1 bg-red-50 p-2 rounded">
+                  禁止变化点：{c.prohibited_changes}
                 </p>
               )}
             </div>

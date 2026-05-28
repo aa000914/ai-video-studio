@@ -1,13 +1,14 @@
-import { getServiceClient } from "@/lib/supabase";
+import { getServiceClient, safePayload } from "@/lib/supabase";
 
 export async function PUT(req, { params }) {
   try {
     const { id } = await params;
     const body = await req.json();
     const supabase = getServiceClient();
+    const clean = await safePayload("scenes", body);
     const { data, error } = await supabase
       .from("scenes")
-      .update(body)
+      .update(clean)
       .eq("id", id)
       .select()
       .single();

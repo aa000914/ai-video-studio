@@ -157,12 +157,18 @@ export default function ShotPanel({ projectId }) {
                   <td className="p-2 border">
                     <span
                       className={`text-xs px-2 py-0.5 rounded ${
-                        s.status === "已生成"
+                        s.status === "已通过"
                           ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-600"
+                          : s.status === "已生成图"
+                            ? "bg-blue-100 text-blue-700"
+                            : s.status === "已生成视频"
+                              ? "bg-purple-100 text-purple-700"
+                              : s.status === "需重做"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-600"
                       }`}
                     >
-                      {s.status}
+                      {s.status || "待生成"}
                     </span>
                   </td>
                   <td className="p-2 border">

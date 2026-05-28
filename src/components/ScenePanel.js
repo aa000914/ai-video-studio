@@ -6,11 +6,12 @@ import EditModal from "./EditModal";
 const FIELDS = [
   { key: "name", label: "场景名称" },
   { key: "location", label: "地点" },
-  { key: "time_period", label: "时间段" },
-  { key: "description", label: "场景描述", type: "textarea" },
-  { key: "lighting", label: "灯光方案" },
-  { key: "style", label: "视觉风格" },
-  { key: "prompt", label: "AI生图提示词", type: "textarea" },
+  { key: "time_period", label: "时代" },
+  { key: "description", label: "空间描述", type: "textarea" },
+  { key: "lighting", label: "光线" },
+  { key: "style", label: "风格" },
+  { key: "prompt", label: "场景提示词", type: "textarea" },
+  { key: "prohibited_elements", label: "禁止元素", type: "textarea" },
   { key: "notes", label: "备注", type: "textarea" },
 ];
 
@@ -159,11 +160,16 @@ export default function ScenePanel({ projectId }) {
               )}
               <div className="flex gap-3 mt-2 text-xs text-gray-500">
                 {s.style && <span>风格: {s.style}</span>}
-                {s.lighting && <span>灯光: {s.lighting}</span>}
+                {s.lighting && <span>光线: {s.lighting}</span>}
               </div>
               {s.prompt && (
                 <p className="text-xs text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                  {s.prompt}
+                  提示词：{s.prompt}
+                </p>
+              )}
+              {s.prohibited_elements && (
+                <p className="text-xs text-red-400 mt-1 bg-red-50 p-2 rounded">
+                  禁止元素：{s.prohibited_elements}
                 </p>
               )}
             </div>

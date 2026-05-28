@@ -90,7 +90,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">项目列表</h2>
-          <p className="text-sm text-gray-500 mt-1">AI视频生产工作台 V1</p>
+          <p className="text-sm text-gray-500 mt-1">从剧本到分镜提示词，一站式管理 AI 视频生产流程。</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -145,7 +145,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div>
               <h4 className="text-sm font-medium text-gray-900">资产统一管理</h4>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                剧本、角色、场景、分镜、提示词全部结构化存储，一处修改全局同步。
+                剧本、角色、场景、分镜、提示词集中管理。
               </p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div>
               <h4 className="text-sm font-medium text-gray-900">协作信息对齐</h4>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                统一提示词和设定文档，减少多人协作中的信息丢失和沟通成本。
+                统一生产文档，减少多人协作信息丢失。
               </p>
             </div>
           </div>
@@ -167,7 +167,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div>
               <h4 className="text-sm font-medium text-gray-900">新人快速上手</h4>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                标准化的剧本拆解到分镜生产流程，让新人按规范步骤完成 AI 视频制作。
+                标准化流程，让新人按步骤完成 AI 视频制作。
               </p>
             </div>
           </div>
@@ -178,7 +178,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div>
               <h4 className="text-sm font-medium text-gray-900">资产库沉淀</h4>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                角色设定和场景模板可跨项目复用，逐步沉淀公司自己的数字资产库。
+                角色和场景模板可跨项目复用。
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
             <div>
               <h4 className="text-sm font-medium text-gray-900">交付效率提升</h4>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                从剧本到成片全链路在线化，减少重复劳动，提高团队整体交付效率。
+                从剧本到制作包，减少重复劳动。
               </p>
             </div>
           </div>
@@ -206,7 +206,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
         <div className="text-center py-16">
           <div className="text-gray-400 text-lg mb-2">暂无项目</div>
           <p className="text-sm text-gray-400 mb-6">
-            请创建演示项目体验完整流程，或新建一个空白项目
+            请创建演示项目或新建项目
           </p>
           <div className="flex gap-3 justify-center">
             <button

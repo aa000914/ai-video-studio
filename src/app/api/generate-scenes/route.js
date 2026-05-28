@@ -1,5 +1,5 @@
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
-import { getServiceClient } from "@/lib/supabase";
+import { getServiceClient, safePayload } from "@/lib/supabase";
 
 export async function POST(req) {
   try {
@@ -57,21 +57,26 @@ ${script ? `剧本内容：\n${script}` : "请根据常见AI短剧类型，生�
     }
 
     const supabase = getServiceClient();
-    const insertData = scenes.map((s) => ({
-      project_id: projectId,
-      name: s.name || "未命名",
-      location: s.location || "",
-      time_period: s.time_period || "",
-      description: s.description || "",
-      lighting: s.lighting || "",
-      style: s.style || "",
-      prompt: s.prompt || "",
-      notes: s.notes || "",
-    }));
+    const scenePayloads = await Promise.all(
+      scenes.map(async (s) =>
+        safePayload("scenes", {
+          project_id: projectId,
+          name: s.name || "未命名",
+          location: s.location || "",
+          time_period: s.time_period || "",
+          description: s.description || "",
+          lighting: s.lighting || "",
+          style: s.style || "",
+          prompt: s.prompt || "",
+          prohibited_elements: s.prohibited_elements || "",
+          notes: s.notes || "",
+        })
+      )
+    );
 
     const { data, error } = await supabase
       .from("scenes")
-      .insert(insertData)
+      .insert(scenePayloads)
       .select();
 
     if (error) throw error;

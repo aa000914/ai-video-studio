@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase";
+import { getServiceClient, safePayload } from "@/lib/supabase";
 
 const DEMO_TITLE = "秦王政十五年·扶苏寻师";
 
@@ -11,6 +11,7 @@ const CHARACTERS = [
     appearance: "身高约178cm，体型修长。面容清秀，剑眉星目，常着一身素色长袍，头戴青巾。腰间系一枚和田玉佩，手掌有长期持剑留下的薄茧",
     costume: "月白色素面交领深衣，青灰色腰带，黑色皂靴。雨天外罩蓑衣斗笠。腰间佩一枚刻有秦篆的玉佩，是家族唯一遗物",
     prompt: "A 28-year-old ancient Chinese scholar-warrior, tall slender build, handsome refined face with sword-like eyebrows, wearing plain moon-white robes with dark grey sash, a jade pendant at waist, standing with quiet dignity, wuxia aesthetic, photorealistic, cinematic lighting",
+    prohibited_changes: "玉佩必须始终佩戴在腰间，不可摘除；左眉上方有一道细小疤痕不可遗漏；发型为秦式高髻，不可改为散发或披发",
     notes: "演员需兼具书卷气与武者的锐利感。眼神在温和与锐利之间切换是关键",
   },
   {
@@ -21,6 +22,7 @@ const CHARACTERS = [
     appearance: "身着玄色冕服，头戴冕冠，面容刚毅，目光深邃。四十余岁却已两鬓微霜，透露出操劳国事的痕迹。手指修长有力",
     costume: "玄色十二章纹冕服，通天冠，纁色下裳，赤舄。日常则穿玄色深衣，束犀带。佩天子剑",
     prompt: "A 45-year-old ancient Chinese emperor, stern dignified face with graying temples, wearing black imperial robes with gold embroidery, seated on throne, commanding presence, historical epic style, photorealistic, dramatic lighting",
+    prohibited_changes: "冕冠不可摘除；玄色十二章纹必须完整；两鬓微霜不可改为全黑；面容刚毅不需过度柔和化",
     notes: "需体现帝王威仪，但不过于刻板，保留人性温度",
   },
   {
@@ -31,6 +33,7 @@ const CHARACTERS = [
     appearance: "白发苍苍，面色红润，蓄三缕长髯。体型偏瘦，背微驼。总是眯着眼睛，似笑非笑，让人看不透心思",
     costume: "深褐色儒袍，外罩鹤氅，手持一根紫竹杖。腰间挂一个青铜小葫芦，内装药酒",
     prompt: "A 62-year-old ancient Chinese scholar, white hair and long white beard, wearing dark brown robes with crane cloak, holding purple bamboo cane, wise knowing eyes, historical drama style, photorealistic",
+    prohibited_changes: "紫竹杖和青铜小葫芦必须随身携带；三缕长髯不可改为短须或无须；面色红润不可苍白化",
     notes: "老戏骨出演最佳，表演应内敛克制，一句台词能藏三层意思",
   },
 ];
@@ -44,6 +47,7 @@ const SCENES = [
     lighting: "暖金色晨光侧打，带轻雾效果。城门铜钉有反光，地面有长影",
     style: "写实历史",
     prompt: "Ancient Chinese city gate of Xianyang at dawn, massive wooden gates with bronze studs, yellow imperial edict posted on stone wall, crowd of commoners in Hanfu gathering below, golden morning light with mist, historical epic, photorealistic, cinematic wide shot",
+    prohibited_elements: "不可出现现代建筑、电线杆、汽车；不可出现唐代及以后的建筑风格（如飞檐翘角过于夸张）；人群服装必须为秦代样式",
     notes: "需在襄阳唐城或横店取景，或使用AI生成。注意秦代建筑风格",
   },
   {
@@ -54,6 +58,7 @@ const SCENES = [
     lighting: "天窗顶光为主，辅以宫灯暖光。王座区明亮，四周偏暗，形成明暗对比",
     style: "写实历史",
     prompt: "Grand hall of Qin Dynasty palace, twelve bronze lamps lining both sides, black and red carpet leading to throne on three-tier platform, skylight beam illuminating the throne, bronze dragon carvings on pillars, ancient Chinese imperial architecture, dramatic chiaroscuro, photorealistic",
+    prohibited_elements: "不可出现明清风格的金銮殿元素；不可出现对联、大幅字画（秦代无此装饰传统）；地面不可为瓷砖或大理石抛光面",
     notes: "重要场景，需体现秦国尚黑的审美和威严肃穆的氛围",
   },
   {
@@ -64,6 +69,7 @@ const SCENES = [
     lighting: "逆光夕阳，透过廊柱形成剪影效果。风灯暖光点缀",
     style: "写实历史",
     prompt: "Semi-open corridor of Qin Dynasty palace at dusk, vermillion pillars on one side, stone wall on the other, golden sunset casting long shadows through pillars, panoramic view of ancient Xianyang city and Wei River beyond, hanging lanterns, atmospheric, wuxia aesthetic, photorealistic",
+    prohibited_elements: "不可出现玻璃窗、金属栏杆等现代建材；廊柱颜色必须为朱红色（秦代尚黑但廊柱用朱红）；不可出现明清式样的雕梁画栋",
     notes: "适合人物对话戏，光影变化丰富，适合长镜头",
   },
 ];
@@ -238,23 +244,31 @@ export async function POST() {
     const projectId = project.id;
 
     // 3. 写入角色
-    const charsWithProject = CHARACTERS.map((c) => ({
-      ...c,
-      project_id: projectId,
-    }));
+    const charPayloads = await Promise.all(
+      CHARACTERS.map(async (c) =>
+        safePayload("characters", {
+          ...c,
+          project_id: projectId,
+        })
+      )
+    );
     const { error: charErr } = await supabase
       .from("characters")
-      .insert(charsWithProject);
+      .insert(charPayloads);
     if (charErr) throw charErr;
 
     // 4. 写入场景
-    const scenesWithProject = SCENES.map((s) => ({
-      ...s,
-      project_id: projectId,
-    }));
+    const scenePayloads = await Promise.all(
+      SCENES.map(async (s) =>
+        safePayload("scenes", {
+          ...s,
+          project_id: projectId,
+        })
+      )
+    );
     const { error: sceneErr } = await supabase
       .from("scenes")
-      .insert(scenesWithProject);
+      .insert(scenePayloads);
     if (sceneErr) throw sceneErr;
 
     // 5. 写入分镜
