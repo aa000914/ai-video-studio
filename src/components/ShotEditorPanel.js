@@ -11,6 +11,11 @@ const STATUS_COLORS = {
   "已通过": "bg-green-100 text-green-700",
 };
 
+const IMAGE_MODELS = ["文生图模型", "参考生图模型", "一致性短剧模型"];
+const VIDEO_MODELS = ["Seedance", "可灵", "海螺", "Vidu", "Pixverse"];
+const RESOLUTIONS = ["720P", "1080P"];
+const VIDEO_DURATIONS = ["5s", "10s"];
+
 export default function ShotEditorPanel({ projectId }) {
   const [shots, setShots] = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -20,7 +25,21 @@ export default function ShotEditorPanel({ projectId }) {
   const [message, setMessage] = useState("");
   const [copiedField, setCopiedField] = useState("");
 
+  // Credit estimation config
+  const [imageModel, setImageModel] = useState("文生图模型");
+  const [videoModel, setVideoModel] = useState("Seedance");
+  const [resolution, setResolution] = useState("720P");
+  const [videoDuration, setVideoDuration] = useState("5s");
+
   const selected = shots[selectedIdx];
+  const totalShots = shots.length;
+
+  // Credit calculation
+  const imageCredits = totalShots * 2;
+  const videoRate = resolution === "1080P" ? 20 : 10;
+  const durationMultiplier = videoDuration === "10s" ? 2 : 1;
+  const videoCredits = totalShots * videoRate * durationMultiplier;
+  const totalCredits = imageCredits + videoCredits;
 
   useEffect(() => { loadShots(); }, [projectId]);
 
@@ -59,6 +78,7 @@ export default function ShotEditorPanel({ projectId }) {
           refined_video_prompt: selected.refined_video_prompt,
           status: selected.status,
           sound: selected.sound,
+          notes: selected.notes,
         }),
       });
       const json = await res.json();
@@ -80,26 +100,32 @@ export default function ShotEditorPanel({ projectId }) {
 
     setPolishing(true);
     setMessage("");
-
     try {
-      const res = await fetch("/api/analyze-script", {
+      const res = await fetch("/api/polish-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          script: `请将以下简短提示词润色成完整的${field === "image" ? "图片" : "视频"}生成提示词。\n\n要求：\n1. 如果是图片提示词，结构为：画风 + 景别 + 主体动作 + 背景环境 + 光线氛围 + 镜头语言\n2. 如果是视频提示词，在上述基础上增加运动描述（摄像机运动、主体动作）\n3. 只输出润色后的英文提示词，不要额外解释\n4. 输出必须是一段完整的英文\n\n原始提示词：${sourceText}`,
-          projectId,
+          type: field,
+          prompt: sourceText,
+          shot: {
+            shot_number: selected.shot_number,
+            scene_name: selected.scene_name,
+            characters: selected.characters,
+            visual: selected.visual,
+            camera: selected.camera,
+          },
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "润色失败");
 
-      if (json.data?.raw) {
-        updateField(field === "image" ? "refined_image_prompt" : "refined_video_prompt", json.data.raw.trim());
-      } else if (json.data?.summary) {
-        updateField(field === "image" ? "refined_image_prompt" : "refined_video_prompt", json.data.summary.trim());
+      const polished = json.data?.polished;
+      if (polished) {
+        const targetField = field === "image" ? "refined_image_prompt" : "refined_video_prompt";
+        updateField(targetField, polished);
       }
-      setMessage("润色完成");
-      setTimeout(() => setMessage(""), 2000);
+      setMessage("润色完成，可手动修改");
+      setTimeout(() => setMessage(""), 3000);
     } catch (err) { setMessage("润色失败: " + err.message); }
     finally { setPolishing(false); }
   }
@@ -125,236 +151,266 @@ export default function ShotEditorPanel({ projectId }) {
   }
 
   return (
-    <div className="flex gap-0 h-full min-h-[600px] bg-white border rounded-xl overflow-hidden">
-      {/* Left: Shot list */}
-      <div className="w-56 border-r bg-gray-50 shrink-0 overflow-auto">
-        <div className="p-3 border-b bg-white">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase">分镜列表</h3>
-        </div>
-        {shots.map((s, i) => (
-          <button
-            key={s.id}
-            onClick={() => setSelectedIdx(i)}
-            className={`w-full text-left px-3 py-3 border-b border-gray-100 hover:bg-gray-100 transition-colors ${
-              i === selectedIdx ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-900">#{s.shot_number}</span>
-              <span className={`text-xs px-1.5 py-0 rounded ${STATUS_COLORS[s.status] || "bg-gray-100 text-gray-600"}`}>
-                {s.status || "待生成"}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-0.5 truncate">{s.scene_name || "—"}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* Center: Shot detail */}
-      <div className="flex-1 overflow-auto p-5 border-r">
-        {selected && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">
-                镜头 #{selected.shot_number} <span className="text-gray-400 font-normal text-sm ml-2">{selected.duration}</span>
-              </h3>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[selected.status] || "bg-gray-100 text-gray-600"}`}>
-                {selected.status || "待生成"}
-              </span>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">场景</label>
-              <p className="text-sm text-gray-900">{selected.scene_name || "—"}</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">出场角色</label>
-              <p className="text-sm text-gray-900">{selected.characters || "—"}</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">画面描述</label>
-              <textarea
-                value={selected.visual || ""}
-                onChange={(e) => updateField("visual", e.target.value)}
-                rows={4}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">台词 / 旁白</label>
-              <textarea
-                value={selected.dialogue || ""}
-                onChange={(e) => updateField("dialogue", e.target.value)}
-                rows={3}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">镜头运动</label>
-              <input
-                value={selected.camera || ""}
-                onChange={(e) => updateField("camera", e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">音效配乐</label>
-              <input
-                value={selected.sound || ""}
-                onChange={(e) => updateField("sound", e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">状态</label>
-              <select
-                value={selected.status || "待生成"}
-                onChange={(e) => updateField("status", e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? "保存中..." : "保存修改"}
+    <div className="flex flex-col gap-0 h-full" style={{ minHeight: "calc(100vh - 280px)" }}>
+      {/* Three-column layout */}
+      <div className="flex flex-1 gap-0 bg-white border rounded-xl overflow-hidden min-h-0">
+        {/* Left: Shot list */}
+        <div className="w-56 border-r bg-gray-50 shrink-0 overflow-auto">
+          <div className="p-3 border-b bg-white sticky top-0">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase">分镜列表 ({shots.length})</h3>
+          </div>
+          {shots.map((s, i) => (
+            <button key={s.id} onClick={() => setSelectedIdx(i)}
+              className={`w-full text-left px-3 py-3 border-b border-gray-100 hover:bg-gray-100 transition-colors ${
+                i === selectedIdx ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+              }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-900">#{s.shot_number}</span>
+                <span className={`text-xs px-1.5 py-0 rounded ${STATUS_COLORS[s.status] || "bg-gray-100 text-gray-600"}`}>
+                  {s.status || "待生成"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{s.scene_name || "—"}</p>
             </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
 
-      {/* Right: Prompt editor */}
-      <div className="w-80 shrink-0 overflow-auto p-5 bg-gray-50">
-        {selected && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">提示词编辑区</h3>
-
-            {/* Image prompt */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-500">图片提示词</label>
-                <button
-                  onClick={() => copyText(selected.image_prompt, "image")}
-                  className="text-xs text-blue-500 hover:underline"
-                >
-                  {copiedField === "image" ? "已复制" : "复制"}
-                </button>
+        {/* Center: Shot detail + image preview */}
+        <div className="flex-1 overflow-auto p-5 border-r">
+          {selected && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">
+                  镜头 #{selected.shot_number}
+                  <span className="text-gray-400 font-normal text-sm ml-2">{selected.duration}</span>
+                </h3>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[selected.status] || "bg-gray-100 text-gray-600"}`}>
+                  {selected.status || "待生成"}
+                </span>
               </div>
-              <textarea
-                value={selected.image_prompt || ""}
-                onChange={(e) => updateField("image_prompt", e.target.value)}
-                rows={4}
-                className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none bg-white"
-                placeholder="英文图片提示词..."
-              />
-              <button
-                onClick={() => handlePolish("image")}
-                disabled={polishing}
-                className="mt-1.5 w-full border border-blue-200 text-blue-600 py-1 rounded text-xs hover:bg-blue-50 disabled:opacity-50"
-              >
-                {polishing ? "AI润色中..." : "AI 润色图片提示词"}
+
+              {/* Image preview placeholder */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 min-h-[180px] flex flex-col items-center justify-center">
+                <div className="text-gray-300 text-4xl mb-3">🖼️</div>
+                <h4 className="text-sm font-medium text-gray-400 mb-1">分镜图预览区</h4>
+                <p className="text-xs text-gray-300">后续可接入即梦/可灵/Seedance 等模型</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="场景" value={selected.scene_name} />
+                <Field label="出场角色" value={selected.characters} />
+                <Field label="时长" value={selected.duration} />
+                <Field label="运镜" value={selected.camera} />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">画面描述</label>
+                <textarea value={selected.visual || ""} onChange={(e) => updateField("visual", e.target.value)}
+                  rows={3} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">台词 / 旁白</label>
+                <textarea value={selected.dialogue || ""} onChange={(e) => updateField("dialogue", e.target.value)}
+                  rows={2} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">音效配乐</label>
+                <input value={selected.sound || ""} onChange={(e) => updateField("sound", e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">制作备注</label>
+                <textarea value={selected.notes || ""} onChange={(e) => updateField("notes", e.target.value)}
+                  rows={2} placeholder="添加工艺说明、特殊要求等..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">状态</label>
+                <select value={selected.status || "待生成"} onChange={(e) => updateField("status", e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  {STATUS_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
+                </select>
+              </div>
+
+              <button onClick={handleSave} disabled={saving}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {saving ? "保存中..." : "保存当前分镜"}
               </button>
             </div>
+          )}
+        </div>
 
-            {/* Video prompt */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-500">视频提示词</label>
-                <button
-                  onClick={() => copyText(selected.video_prompt, "video")}
-                  className="text-xs text-blue-500 hover:underline"
-                >
-                  {copiedField === "video" ? "已复制" : "复制"}
+        {/* Right: Prompt editor + Credit estimation */}
+        <div className="w-80 shrink-0 overflow-auto p-5 bg-gray-50">
+          {selected && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">提示词与执行区</h3>
+
+              {/* Image prompt */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-500">图片提示词</label>
+                  <button onClick={() => copyText(selected.image_prompt, "image")}
+                    className="text-xs text-blue-500 hover:underline">
+                    {copiedField === "image" ? "已复制" : "复制"}
+                  </button>
+                </div>
+                <textarea value={selected.image_prompt || ""} onChange={(e) => updateField("image_prompt", e.target.value)}
+                  rows={4} placeholder="英文图片提示词..."
+                  className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none bg-white" />
+                <button onClick={() => handlePolish("image")} disabled={polishing}
+                  className="mt-1.5 w-full border border-blue-200 text-blue-600 py-1.5 rounded text-xs hover:bg-blue-50 disabled:opacity-50">
+                  {polishing ? "AI润色中..." : "AI 润色图片提示词"}
                 </button>
               </div>
-              <textarea
-                value={selected.video_prompt || ""}
-                onChange={(e) => updateField("video_prompt", e.target.value)}
-                rows={4}
-                className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none bg-white"
-                placeholder="英文视频提示词..."
-              />
-              <button
-                onClick={() => handlePolish("video")}
-                disabled={polishing}
-                className="mt-1.5 w-full border border-purple-200 text-purple-600 py-1 rounded text-xs hover:bg-purple-50 disabled:opacity-50"
-              >
-                {polishing ? "AI润色中..." : "AI 润色视频提示词"}
-              </button>
-            </div>
 
-            {/* Refined prompts */}
-            {(selected.refined_image_prompt || selected.refined_video_prompt) && (
-              <div className="border-t pt-4 mt-4">
-                <h4 className="text-xs font-semibold text-gray-500 mb-3">润色结果</h4>
-                {selected.refined_image_prompt && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs text-green-600 font-medium">润色后图片提示词</label>
-                      <button onClick={() => copyText(selected.refined_image_prompt, "refined_image")}
-                        className="text-xs text-blue-500 hover:underline">
-                        {copiedField === "refined_image" ? "已复制" : "复制"}
-                      </button>
-                    </div>
-                    <textarea
-                      value={selected.refined_image_prompt}
-                      onChange={(e) => updateField("refined_image_prompt", e.target.value)}
-                      rows={4}
-                      className="w-full border border-green-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-green-400 resize-none bg-white"
-                    />
-                  </div>
-                )}
-                {selected.refined_video_prompt && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs text-purple-600 font-medium">润色后视频提示词</label>
-                      <button onClick={() => copyText(selected.refined_video_prompt, "refined_video")}
-                        className="text-xs text-blue-500 hover:underline">
-                        {copiedField === "refined_video" ? "已复制" : "复制"}
-                      </button>
-                    </div>
-                    <textarea
-                      value={selected.refined_video_prompt}
-                      onChange={(e) => updateField("refined_video_prompt", e.target.value)}
-                      rows={4}
-                      className="w-full border border-purple-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none bg-white"
-                    />
-                  </div>
-                )}
+              {/* Video prompt */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-500">视频提示词</label>
+                  <button onClick={() => copyText(selected.video_prompt, "video")}
+                    className="text-xs text-blue-500 hover:underline">
+                    {copiedField === "video" ? "已复制" : "复制"}
+                  </button>
+                </div>
+                <textarea value={selected.video_prompt || ""} onChange={(e) => updateField("video_prompt", e.target.value)}
+                  rows={4} placeholder="英文视频提示词..."
+                  className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none bg-white" />
+                <button onClick={() => handlePolish("video")} disabled={polishing}
+                  className="mt-1.5 w-full border border-purple-200 text-purple-600 py-1.5 rounded text-xs hover:bg-purple-50 disabled:opacity-50">
+                  {polishing ? "AI润色中..." : "AI 润色视频提示词"}
+                </button>
               </div>
-            )}
 
-            {/* Prompt structure guide */}
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-4">
-              <p className="text-xs font-medium text-blue-700 mb-1">提示词结构参考</p>
-              <p className="text-xs text-blue-600 leading-relaxed">
-                画风 + 景别 + 主体动作 + 背景环境 + 光线氛围 + 镜头语言
-              </p>
+              {/* Refined prompts */}
+              {(selected.refined_image_prompt || selected.refined_video_prompt) && (
+                <div className="border-t pt-4">
+                  <h4 className="text-xs font-semibold text-gray-500 mb-3">润色结果（可手动修改）</h4>
+                  {selected.refined_image_prompt && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-green-600 font-medium">润色后图片提示词</label>
+                        <button onClick={() => copyText(selected.refined_image_prompt, "refined_image")}
+                          className="text-xs text-blue-500 hover:underline">
+                          {copiedField === "refined_image" ? "已复制" : "复制"}
+                        </button>
+                      </div>
+                      <textarea value={selected.refined_image_prompt}
+                        onChange={(e) => updateField("refined_image_prompt", e.target.value)}
+                        rows={4} className="w-full border border-green-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-green-400 resize-none bg-white" />
+                    </div>
+                  )}
+                  {selected.refined_video_prompt && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-purple-600 font-medium">润色后视频提示词</label>
+                        <button onClick={() => copyText(selected.refined_video_prompt, "refined_video")}
+                          className="text-xs text-blue-500 hover:underline">
+                          {copiedField === "refined_video" ? "已复制" : "复制"}
+                        </button>
+                      </div>
+                      <textarea value={selected.refined_video_prompt}
+                        onChange={(e) => updateField("refined_video_prompt", e.target.value)}
+                        rows={4} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none bg-white" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Prompt structure guide */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <p className="text-xs font-medium text-blue-700 mb-1">提示词结构参考</p>
+                <p className="text-xs text-blue-600 leading-relaxed">
+                  画风 + 景别 + 主体动作 + 背景环境 + 光线氛围 + 镜头语言
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Message */}
-        {message && (
-          <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${
-            message.includes("失败") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
-          }`}>
-            {message}
-          </div>
-        )}
+          {/* Message */}
+          {message && (
+            <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${
+              message.includes("失败") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+            }`}>
+              {message}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Bottom: Credit & Model Estimation */}
+      <div className="bg-white border rounded-xl p-5 mt-3">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">生成配置 / 积分估算</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Image model */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">生图模型</label>
+            <select value={imageModel} onChange={(e) => setImageModel(e.target.value)}
+              className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {IMAGE_MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
+            </select>
+          </div>
+          {/* Video model */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">视频模型</label>
+            <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)}
+              className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {VIDEO_MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
+            </select>
+          </div>
+          {/* Resolution */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">分辨率</label>
+            <select value={resolution} onChange={(e) => setResolution(e.target.value)}
+              className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {RESOLUTIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
+            </select>
+          </div>
+          {/* Duration */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">单镜头视频时长</label>
+            <select value={videoDuration} onChange={(e) => setVideoDuration(e.target.value)}
+              className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {VIDEO_DURATIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
+            </select>
+          </div>
+        </div>
+
+        {/* Credit summary */}
+        <div className="mt-5 grid grid-cols-3 gap-4">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+            <div className="text-xs text-blue-500 mb-1">分镜图积分</div>
+            <div className="text-2xl font-bold text-blue-700">{imageCredits}</div>
+            <div className="text-xs text-blue-400 mt-0.5">{totalShots} 张 × 2 积分</div>
+          </div>
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-center">
+            <div className="text-xs text-purple-500 mb-1">视频积分</div>
+            <div className="text-2xl font-bold text-purple-700">{videoCredits}</div>
+            <div className="text-xs text-purple-400 mt-0.5">{totalShots} 条 × {videoRate} × {durationMultiplier}</div>
+          </div>
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
+            <div className="text-xs text-amber-500 mb-1">总预计积分</div>
+            <div className="text-2xl font-bold text-amber-700">{totalCredits}</div>
+            <div className="text-xs text-amber-400 mt-0.5">演示估算</div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 mt-3 text-center">
+          * 以上为演示估算（每张图2积分，720P/5s=10积分，1080P/5s=20积分），不接真实计费
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div>
+      <label className="text-xs text-gray-400 mb-0.5 block">{label}</label>
+      <p className="text-sm text-gray-900">{value || "—"}</p>
     </div>
   );
 }

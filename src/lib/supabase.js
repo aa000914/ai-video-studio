@@ -39,7 +39,7 @@ const FALLBACK_COLUMNS = {
     "id", "project_id", "shot_number", "duration", "scene_name",
     "characters", "visual", "camera", "dialogue", "sound",
     "image_prompt", "video_prompt", "refined_image_prompt", "refined_video_prompt",
-    "status", "created_at",
+    "notes", "status", "created_at",
   ]),
   projects: new Set([
     "id", "title", "type", "platform", "status", "description",
