@@ -22,7 +22,7 @@ import { submitImageTask } from "@/lib/dashscope";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { prompt, size = "1024*1024", n = 1, negative_prompt = "" } = body;
+    const { prompt, size = "1024*1024", n = 1, negative_prompt = "", ref_image = "" } = body;
 
     if (!prompt || !prompt.trim()) {
       return Response.json({ error: "请输入图片提示词" }, { status: 400 });
@@ -32,6 +32,7 @@ export async function POST(req) {
       size,
       n: Math.min(Math.max(1, n), 4),
       negative_prompt,
+      ref_image: ref_image || undefined,
     });
 
     // 同步模式：直接返回结果

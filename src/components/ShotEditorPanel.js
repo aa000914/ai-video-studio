@@ -35,9 +35,9 @@ export default function ShotEditorPanel({ projectId }) {
   const [message, setMessage] = useState("");
   const [copiedField, setCopiedField] = useState("");
 
-  // Credit estimation config
-  const [imageModel, setImageModel] = useState("文生图模型");
-  const [videoModel, setVideoModel] = useState("Seedance");
+  // Model config
+  const [imageModel, setImageModel] = useState("qwen-image-2.0-pro");
+  const [videoModel, setVideoModel] = useState("wan2.7-t2v");
   const [resolution, setResolution] = useState("720P");
   const [videoDuration, setVideoDuration] = useState("5s");
 
@@ -76,14 +76,15 @@ export default function ShotEditorPanel({ projectId }) {
 
   useEffect(() => { loadShots(); loadPlanAspect(); }, [projectId]);
 
-  // Reset generation state when switching shots
+  // Reset generation state when switching shots, load existing image
   useEffect(() => {
-    setResultImageUrl("");
-    setImageTaskStatus("idle");
+    const s = shots[selectedIdx];
+    setResultImageUrl(s?.image_url || "");
+    setResultVideoUrl(s?.video_url || "");
+    setImageTaskStatus(s?.image_url ? "succeeded" : "idle");
+    setVideoTaskStatus(s?.video_url ? "succeeded" : "idle");
     setImageTaskId("");
     setImageError("");
-    setResultVideoUrl("");
-    setVideoTaskStatus("idle");
     setVideoError("");
   }, [selectedIdx]);
 
@@ -209,6 +210,7 @@ export default function ShotEditorPanel({ projectId }) {
         body: JSON.stringify({
           prompt: truncatePrompt(promptText.trim(), 600),
           size: `${dims.width}*${dims.height}`,
+          ref_image: selected.ref_image_url || "",
         }),
       });
       const submitData = await submitRes.json();
@@ -381,6 +383,71 @@ export default function ShotEditorPanel({ projectId }) {
     setTimeout(() => handleGenerateVideo(selectedVideoMode), 300);
   }
 
+  // Batch generation state
+  const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, current: "" });
+  const [batchAbort, setBatchAbort] = useState(false);
+
+  async function handleBatchGenerate() {
+    setBatchGenerating(true);
+    setBatchAbort(false);
+    const ungenerated = shots.filter((s) => !s.image_url);
+    setBatchProgress({ done: 0, total: ungenerated.length, current: "" });
+
+    for (let i = 0; i < ungenerated.length; i++) {
+      if (batchAbort) break;
+      const s = ungenerated[i];
+      setBatchProgress({ done: i, total: ungenerated.length, current: `镜头 #${s.shot_number}` });
+
+      const promptText = s.refined_image_prompt || s.image_prompt;
+      if (!promptText?.trim()) continue;
+
+      try {
+        const res = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: truncatePrompt(promptText.trim(), 600),
+            size: `${dims.width}*${dims.height}`,
+            ref_image: s.ref_image_url || "",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "失败");
+
+        let url = null;
+        if (data.results?.[0]?.url) {
+          url = data.results[0].url;
+        } else if (data.task_id) {
+          for (let j = 0; j < 30; j++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const poll = await fetch(`/api/media-task?task_id=${data.task_id}`);
+            const pollData = await poll.json();
+            if (pollData.status === "SUCCEEDED" && pollData.results?.[0]?.url) {
+              url = pollData.results[0].url;
+              break;
+            }
+            if (pollData.status === "FAILED") break;
+          }
+        }
+
+        if (url) {
+          await fetch(`/api/shots/${s.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image_url: url }),
+          });
+        }
+      } catch { /* skip failed shots */ }
+    }
+
+    setBatchGenerating(false);
+    setBatchProgress((prev) => ({ ...prev, current: "" }));
+    setMessage("批量生成完成");
+    loadShots();
+    setTimeout(() => setMessage(""), 3000);
+  }
+
   async function copyText(text, field) {
     try {
       await navigator.clipboard.writeText(text || "");
@@ -406,22 +473,38 @@ export default function ShotEditorPanel({ projectId }) {
       {/* Three-column layout */}
       <div className="flex flex-1 gap-0 bg-white border rounded-xl overflow-hidden min-h-0">
         {/* Left: Shot list */}
-        <div className="w-56 border-r bg-gray-50 shrink-0 overflow-auto">
-          <div className="p-3 border-b bg-white sticky top-0">
+        <div className="w-60 border-r bg-gray-50 shrink-0 overflow-auto">
+          <div className="p-3 border-b bg-white sticky top-0 flex items-center justify-between">
             <h3 className="text-xs font-semibold text-gray-500 uppercase">分镜列表 ({shots.length})</h3>
           </div>
           {shots.map((s, i) => (
             <button key={s.id} onClick={() => setSelectedIdx(i)}
-              className={`w-full text-left px-3 py-3 border-b border-gray-100 hover:bg-gray-100 transition-colors ${
+              className={`w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-gray-100 transition-colors ${
                 i === selectedIdx ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
               }`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-900">#{s.shot_number}</span>
-                <span className={`text-xs px-1.5 py-0 rounded ${STATUS_COLORS[s.status] || "bg-gray-100 text-gray-600"}`}>
+                <span className={`text-xs px-1.5 py-0 rounded-full ${STATUS_COLORS[s.status] || "bg-gray-100 text-gray-600"}`}>
                   {s.status || "待生成"}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mt-0.5 truncate">{s.scene_name || "—"}</p>
+              {/* Thumbnail + status icons */}
+              <div className="flex items-center gap-2 mt-1.5">
+                {s.image_url ? (
+                  <img src={s.image_url} className="w-10 h-10 rounded object-cover shrink-0 border" alt="" />
+                ) : (
+                  <div className="w-10 h-10 rounded bg-gray-200 border shrink-0 flex items-center justify-center text-gray-400 text-[10px]">
+                    空
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400 truncate">{s.scene_name || "—"}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {s.image_url && <span className="text-[10px]" title="有图">🖼</span>}
+                    {s.video_url && <span className="text-[10px]" title="有视频">🎬</span>}
+                  </div>
+                </div>
+              </div>
             </button>
           ))}
         </div>
@@ -621,8 +704,15 @@ export default function ShotEditorPanel({ projectId }) {
                   {polishing ? "AI润色中..." : "AI 润色图片提示词"}
                 </button>
 
-                {/* DashScope text-to-image */}
+                {/* Reference image input */}
                 <div className="border-t pt-3 mt-3">
+                  <label className="text-[10px] text-gray-400 mb-1 block">参考图片 URL（可选，用于角色/场景一致性）</label>
+                  <input
+                    value={selected.ref_image_url || ""}
+                    onChange={(e) => updateField("ref_image_url", e.target.value)}
+                    placeholder="输入参考图片 URL..."
+                    className="w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400 bg-white mb-2"
+                  />
                   <button
                     onClick={handleGenerateImage}
                     disabled={imageTaskStatus === "submitting" || imageTaskStatus === "running"}
@@ -776,6 +866,40 @@ export default function ShotEditorPanel({ projectId }) {
             </select>
           </div>
         </div>
+
+        {/* Batch generation */}
+        <div className="mt-4 flex gap-3 items-center">
+          <button
+            onClick={handleBatchGenerate}
+            disabled={batchGenerating}
+            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-50 shadow-sm transition-all"
+          >
+            {batchGenerating
+              ? `批量生成中... ${batchProgress.done}/${batchProgress.total}`
+              : `🚀 批量生成全部镜头图 (${shots.filter((s) => !s.image_url).length}个)`}
+          </button>
+          {batchGenerating && (
+            <button
+              onClick={() => { setBatchAbort(true); setBatchGenerating(false); }}
+              className="border border-red-300 text-red-600 px-4 py-2.5 rounded-xl text-sm hover:bg-red-50 transition-all shrink-0"
+            >
+              取消
+            </button>
+          )}
+        </div>
+        {batchGenerating && batchProgress.current && (
+          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-blue-700">
+                正在生成 {batchProgress.current} ({batchProgress.done}/{batchProgress.total})
+              </p>
+            </div>
+            <div className="mt-2 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${batchProgress.total > 0 ? (batchProgress.done / batchProgress.total) * 100 : 0}%` }} />
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-xs text-amber-700">

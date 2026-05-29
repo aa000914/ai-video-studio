@@ -15,12 +15,9 @@
 const DASHSCOPE_BASE = "https://dashscope.aliyuncs.com/api/v1";
 
 const SERVICE_ENDPOINTS = {
-  "text2image": "services/aigc/text2image/image-synthesis",  // 旧接口 (wanx-v1)
-  "multimodal": "services/aigc/multimodal-generation/generation",  // 新 multimodal 接口
-  "image2video": "services/aigc/videogeneration/image2video/wan2.7-i2v-2026-04-25",
-  "text2video": "services/aigc/videogeneration/text2video/wan2.7-t2v",
-  "videoedit": "services/aigc/videogeneration/video2video/wan2.7-videoedit",
-  "happyhorse-videoedit": "services/aigc/videogeneration/video2video/happyhorse-1.0-video-edit",
+  "text2image": "services/aigc/text2image/image-synthesis",
+  "multimodal": "services/aigc/multimodal-generation/generation",
+  "video-generation": "services/aigc/video-generation/video-synthesis",  // wan2.7 统一视频端点
 };
 
 function getApiKey() {
@@ -163,17 +160,16 @@ export async function queryTask(taskId) {
  * @returns {Promise<{status: string, results?: Array<{url: string}>, task_id?: string}>}
  */
 export async function submitImageTask(prompt, options = {}) {
-  const { size, n, negative_prompt } = options;
+  const { size, n, negative_prompt, ref_image } = options;
   const preferredModel = process.env.QWEN_IMAGE_MODEL || "qwen-image-2.0-pro";
 
   // === 策略 1: wan2.6-t2i 同步 multimodal ===
   try {
-    const messages = [
-      {
-        role: "user",
-        content: [{ text: prompt }],
-      },
-    ];
+    const content = [{ text: prompt }];
+    if (ref_image && ref_image.startsWith("http")) {
+      content.push({ image: ref_image });
+    }
+    const messages = [{ role: "user", content }];
     return await callMultimodalSync("wan2.6-t2i", messages);
   } catch (err) {
     // wan2.6-t2i 失败，继续尝试回退
@@ -201,9 +197,11 @@ export async function submitImageTask(prompt, options = {}) {
     try {
       const isPro = preferredModel.includes("-pro");
       if (isPro) {
-        const messages = [
-          { role: "user", content: [{ text: prompt }] },
-        ];
+        const content = [{ text: prompt }];
+        if (ref_image && ref_image.startsWith("http")) {
+          content.push({ image: ref_image });
+        }
+        const messages = [{ role: "user", content }];
         return await callMultimodalSync(preferredModel, messages);
       }
       const body = {
@@ -224,15 +222,15 @@ export async function submitImageTask(prompt, options = {}) {
 
 /**
  * 提交异步生成任务 (供视频类调用)
- * @param {string} serviceType - 服务类型
- * @param {object} input - 模型输入
- * @param {object} params - 额外参数
- * @param {string} [modelOverride] - 覆盖模型名
+ * @param {string} serviceType - "video-generation"
+ * @param {object} input - { prompt } | { image_url, prompt } | { video_url, prompt }
+ * @param {object} params - { resolution, duration, ... }
+ * @param {string} [modelOverride] - e.g. wan2.7-t2v, wan2.7-i2v
  * @returns {Promise<{task_id: string}>}
  */
 export async function submitTask(serviceType, input, params = {}, modelOverride) {
-  const model = modelOverride || getModelForService(serviceType);
-  const endpoint = SERVICE_ENDPOINTS[serviceType];
+  const model = modelOverride || "wan2.7-t2v";
+  const endpoint = SERVICE_ENDPOINTS[serviceType] || SERVICE_ENDPOINTS["video-generation"];
   if (!endpoint) throw new Error(`Unknown service type: ${serviceType}`);
 
   const body = { model, input };
@@ -242,42 +240,44 @@ export async function submitTask(serviceType, input, params = {}, modelOverride)
 }
 
 /**
- * 提交图生视频任务
- */
-export async function submitImageToVideo(imageUrl, prompt, options = {}) {
-  const input = { image_url: imageUrl, prompt };
-  if (options.negative_prompt) input.negative_prompt = options.negative_prompt;
-  return submitTask("image2video", input, options.parameters || {});
-}
-
-/**
  * 提交文生视频任务
  */
 export async function submitTextToVideo(prompt, options = {}) {
-  const input = { prompt };
-  if (options.negative_prompt) input.negative_prompt = options.negative_prompt;
-  return submitTask("text2video", input, options.parameters || {});
+  const model = process.env.WAN_T2V_MODEL || "wan2.7-t2v";
+  const params = { resolution: options.resolution || "720P" };
+  if (options.duration) params.duration = options.duration;
+  if (options.ratio) params.ratio = options.ratio;
+  if (options.negative_prompt) params.negative_prompt = options.negative_prompt;
+  return submitTask("video-generation", { prompt }, params, model);
+}
+
+/**
+ * 提交图生视频任务
+ */
+export async function submitImageToVideo(imageUrl, prompt, options = {}) {
+  const model = process.env.WAN_I2V_MODEL || "wan2.7-i2v-2026-04-25";
+  const params = { resolution: options.resolution || "720P" };
+  if (options.duration) params.duration = options.duration;
+  if (options.ratio) params.ratio = options.ratio;
+  return submitTask("video-generation", { image_url: imageUrl, prompt: prompt || "Generate video from this image" }, params, model);
 }
 
 /**
  * 提交视频编辑任务
  */
 export async function submitVideoEdit(serviceType, videoUrl, prompt, options = {}) {
-  if (serviceType !== "videoedit" && serviceType !== "happyhorse-videoedit") {
-    throw new Error(`Unsupported video edit type: ${serviceType}`);
+  if (serviceType === "happyhorse-videoedit") {
+    const model = process.env.HAPPYHORSE_VIDEO_EDIT_MODEL || "happyhorse-1.0-video-edit";
+    return submitTask("video-generation", { video_url: videoUrl, prompt }, {}, model);
   }
-  const input = { video_url: videoUrl, prompt };
-  return submitTask(serviceType, input, options.parameters || {});
+  const model = process.env.WAN_VIDEO_EDIT_MODEL || "wan2.7-videoedit";
+  return submitTask("video-generation", { video_url: videoUrl, prompt }, {}, model);
 }
 
 /** 根据服务类型获取模型名 */
 function getModelForService(serviceType) {
-  const modelMap = {
-    "text2image": process.env.QWEN_IMAGE_MODEL || "qwen-image-2.0-pro",
-    "image2video": process.env.WAN_I2V_MODEL || "wan2.7-i2v-2026-04-25",
-    "text2video": process.env.WAN_T2V_MODEL || "wan2.7-t2v",
-    "videoedit": process.env.WAN_VIDEO_EDIT_MODEL || "wan2.7-videoedit",
-    "happyhorse-videoedit": process.env.HAPPYHORSE_VIDEO_EDIT_MODEL || "happyhorse-1.0-video-edit",
-  };
-  return modelMap[serviceType] || serviceType;
+  if (serviceType === "video-generation") {
+    return process.env.WAN_T2V_MODEL || "wan2.7-t2v";
+  }
+  return serviceType;
 }
