@@ -13,9 +13,8 @@ const STEPS = [
   { key: "plan", label: "策划案", icon: "📋" },
   { key: "subjects", label: "主体库", icon: "🎭" },
   { key: "storyboard", label: "分镜剧本", icon: "📜" },
-  { key: "editor", label: "分镜编辑", icon: "✂️" },
-  { key: "generate", label: "生图/生视频", icon: "🎨" },
-  { key: "export", label: "导出", icon: "📦" },
+  { key: "editor", label: "分镜编辑 · 生图 · 生视频", icon: "✂️" },
+  { key: "export", label: "导出制作包", icon: "📦" },
 ];
 
 export default function ProjectDetailPage() {
@@ -209,7 +208,6 @@ export default function ProjectDetailPage() {
         )}
         {activeTab === "storyboard" && <ShotPanel projectId={projectId} />}
         {activeTab === "editor" && <ShotEditorPanel projectId={projectId} />}
-        {activeTab === "generate" && <ShotEditorPanel projectId={projectId} />}
         {activeTab === "export" && <ExportPanel project={project} projectId={projectId} />}
       </div>
     </div>

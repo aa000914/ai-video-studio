@@ -7,27 +7,40 @@ export default function ExportPanel({ project, projectId }) {
   const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
   const [shots, setShots] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [copied, setCopied] = useState("");
 
   useEffect(() => { loadData(); }, [projectId]);
 
   async function loadData() {
     try {
-      const [planRes, charRes, sceneRes, shotRes] = await Promise.all([
+      const [planRes, charRes, sceneRes, shotRes, tasksRes] = await Promise.all([
         fetch(`/api/plans?project_id=${projectId}`),
         fetch(`/api/characters?project_id=${projectId}`),
         fetch(`/api/scenes?project_id=${projectId}`),
         fetch(`/api/shots?project_id=${projectId}`),
+        fetch(`/api/tasks?project_id=${projectId}&limit=500`),
       ]);
-      const [p, c, s, sh] = await Promise.all([
-        planRes.json(), charRes.json(), sceneRes.json(), shotRes.json(),
+      const [p, c, s, sh, t] = await Promise.all([
+        planRes.json(), charRes.json(), sceneRes.json(), shotRes.json(), tasksRes.json(),
       ]);
       setPlan(p.data || null);
       setCharacters(c.data || []);
       setScenes(s.data || []);
-      setShots(sh.data || []);
+      const sortedShots = (sh.data || []).sort((a, b) => (a.shot_number || 0) - (b.shot_number || 0));
+      setShots(sortedShots);
+      setTasks(t.data || []);
     } catch { /* ignore */ }
   }
+
+  // Build task lookup by shot_id
+  const tasksByShot = {};
+  tasks.forEach((t) => {
+    if (t.shot_id) {
+      if (!tasksByShot[t.shot_id]) tasksByShot[t.shot_id] = [];
+      tasksByShot[t.shot_id].push(t);
+    }
+  });
 
   // Stats helpers
   const approved = shots.filter((s) => s.status === "已通过").length;
@@ -36,14 +49,15 @@ export default function ExportPanel({ project, projectId }) {
   const videoDone = shots.filter((s) => s.status === "已生成视频").length;
   const redo = shots.filter((s) => s.status === "需重做").length;
   const completionPct = shots.length > 0 ? Math.round((approved / shots.length) * 100) : 0;
-  const imageCredits = shots.length * 2;
-  const videoCredits = shots.length * 10;
-  const totalCredits = imageCredits + videoCredits;
+
+  const succeededTasks = tasks.filter((t) => t.status === "succeeded").length;
+  const failedTasks = tasks.filter((t) => t.status === "failed").length;
+  const runningTasks = tasks.filter((t) => t.status === "running" || t.status === "pending").length;
 
   function generateMarkdown() {
     const now = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
     let md = `# ${project.title}\n\n`;
-    md += `> 本制作包由 AI视频生产工作台 自动生成 | V4 生产执行版\n`;
+    md += `> 本制作包由 AI视频生产工作台 V6 生成任务中心版 自动生成\n`;
     md += `> 导出时间：${now}\n\n`;
     md += `---\n\n`;
 
@@ -59,16 +73,17 @@ export default function ExportPanel({ project, projectId }) {
     md += `| 需重做 | ${redo} |\n`;
     md += `| 已通过 | ${approved} |\n`;
     md += `| 完成度 | ${completionPct}% |\n`;
-    md += `| 预计图片积分 | ${imageCredits} |\n`;
-    md += `| 预计视频积分 | ${videoCredits} |\n`;
-    md += `| **总预计积分** | **${totalCredits}** |\n`;
+    md += `| 生成任务总数 | ${tasks.length} |\n`;
+    md += `| 成功 | ${succeededTasks} |\n`;
+    md += `| 失败 | ${failedTasks} |\n`;
+    md += `| 进行中 | ${runningTasks} |\n`;
     md += `\n---\n\n`;
 
     // ===== 模型配置建议 =====
     md += `## 模型配置建议\n\n`;
     md += `| 配置项 | 推荐值 |\n|------|------|\n`;
-    md += `| 推荐生图模型 | 一致性短剧模型 / 文生图模型 |\n`;
-    md += `| 推荐视频模型 | Seedance / 可灵 |\n`;
+    md += `| 推荐生图模型 | wan2.7-image-pro / qwen-image-2.0-pro |\n`;
+    md += `| 推荐视频模型 | wan2.7-t2v / wan2.7-i2v-2026-04-25 |\n`;
     md += `| 推荐画面比例 | ${plan?.aspect_ratio || "9:16"} |\n`;
     md += `| 推荐分辨率 | 1080P |\n`;
     md += `| 建议单镜时长 | 5s |\n`;
@@ -151,13 +166,17 @@ export default function ExportPanel({ project, projectId }) {
     }
     md += `---\n\n`;
 
-    // ===== 五、分镜执行清单 =====
-    md += `## 五、分镜执行清单\n\n`;
+    // ===== 五、分镜执行清单（含任务状态） =====
+    md += `## 五、分镜执行清单（含生成任务状态）\n\n`;
     if (shots.length === 0) {
       md += `> 暂无分镜\n\n`;
     } else {
-      md += `> 以下为每个镜头的执行详情，包含状态、提示词和制作备注。\n\n`;
+      md += `> 以下为每个镜头的执行详情，包含状态、提示词、生成任务记录和制作备注。\n\n`;
       shots.forEach((s) => {
+        const shotTasks = tasksByShot[s.id] || [];
+        const imageTask = shotTasks.find((t) => t.type === "image");
+        const videoTask = shotTasks.find((t) => t.type === "i2v" || t.type === "t2v");
+
         md += `### 镜头 ${s.shot_number} — ${s.scene_name || "—"}\n\n`;
         md += `| 属性 | 内容 |\n|------|------|\n`;
         md += `| 状态 | ${s.status || "待生成"} |\n`;
@@ -166,76 +185,55 @@ export default function ExportPanel({ project, projectId }) {
         md += `| 时长 | ${s.duration || "—"} |\n`;
         if (s.visual) md += `| 画面 | ${s.visual} |\n`;
         if (s.dialogue) md += `| 台词 | ${s.dialogue} |\n`;
+
+        // Generation task status
+        if (imageTask) {
+          md += `| 生图模型 | ${imageTask.model || "—"} |\n`;
+          md += `| 生图状态 | ${imageTask.status || "—"} |\n`;
+          if (imageTask.status === "failed") md += `| 生图失败原因 | ${imageTask.error_message || "—"} |\n`;
+        }
+        if (videoTask) {
+          md += `| 视频模型 | ${videoTask.model || "—"} |\n`;
+          md += `| 视频状态 | ${videoTask.status || "—"} |\n`;
+          if (videoTask.status === "failed") md += `| 视频失败原因 | ${videoTask.error_message || "—"} |\n`;
+        }
+
         md += `\n**图片提示词**\n\n\`\`\`\n${s.image_prompt || "—"}\n\`\`\`\n\n`;
         if (s.refined_image_prompt) md += `**润色版图片提示词**\n\n\`\`\`\n${s.refined_image_prompt}\n\`\`\`\n\n`;
         md += `**视频提示词**\n\n\`\`\`\n${s.video_prompt || "—"}\n\`\`\`\n\n`;
         if (s.refined_video_prompt) md += `**润色版视频提示词**\n\n\`\`\`\n${s.refined_video_prompt}\n\`\`\`\n\n`;
+
+        // Generated assets
+        if (s.image_url) {
+          md += `**已生成图片**\n\n![镜头${s.shot_number}](${s.image_url})\n\n[打开原图](${s.image_url})\n\n`;
+        }
+        if (s.video_url) {
+          md += `**已生成视频**\n\n[视频预览](${s.video_url}) | [下载视频](${s.video_url})\n\n`;
+        }
+
         if (s.notes) md += `**制作备注**：${s.notes}\n\n`;
         md += `---\n\n`;
       });
     }
-    md += `---\n\n`;
 
-    // ===== 六、已生成图片链接 =====
-    md += `## 六、已生成图片链接\n\n`;
-    const imageShotsWithUrls = shots.filter((s) => s.image_url);
-    if (imageShotsWithUrls.length === 0) {
-      md += `> 暂无已生成图片\n\n`;
+    // ===== 六、生成任务汇总 =====
+    md += `## 六、生成任务汇总\n\n`;
+    if (tasks.length === 0) {
+      md += `> 暂无生成任务\n\n`;
     } else {
-      imageShotsWithUrls.forEach((s) => {
-        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
-        md += `![镜头${s.shot_number}](${s.image_url})\n\n`;
-        md += `[打开原图](${s.image_url})\n\n`;
+      md += `| 类型 | 模型 | 状态 | 创建时间 | 结果 | 错误信息 |\n`;
+      md += `|------|------|------|----------|------|----------|\n`;
+      tasks.slice(0, 100).forEach((t) => {
+        const typeLabels = { image: "生图", t2v: "文生视频", i2v: "图生视频", video_edit: "视频编辑" };
+        const time = t.created_at ? new Date(t.created_at).toLocaleString("zh-CN") : "—";
+        md += `| ${typeLabels[t.type] || t.type} | ${t.model || "—"} | ${t.status || "—"} | ${time} | ${t.result_url ? "[查看结果](" + t.result_url + ")" : "—"} | ${t.error_message || "—"} |\n`;
       });
+      md += `\n`;
     }
     md += `---\n\n`;
 
-    // ===== 七、已生成视频链接 =====
-    md += `## 七、已生成视频链接\n\n`;
-    const videoShotsWithUrls = shots.filter((s) => s.video_url);
-    if (videoShotsWithUrls.length === 0) {
-      md += `> 暂无已生成视频\n\n`;
-    } else {
-      videoShotsWithUrls.forEach((s) => {
-        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
-        md += `[视频预览](${s.video_url})\n\n`;
-        md += `[下载视频](${s.video_url})\n\n`;
-      });
-    }
-    md += `---\n\n`;
-
-    // ===== 八、图片提示词汇总 =====
-    md += `## 六、图片提示词汇总\n\n`;
-    md += `> 可直接用于 Midjourney / Stable Diffusion / DALL·E 等工具。\n\n`;
-    const imageShots = shots.filter((s) => s.image_prompt);
-    if (imageShots.length === 0) {
-      md += `> 暂无\n\n`;
-    } else {
-      imageShots.forEach((s) => {
-        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
-        md += `\`\`\`\n${s.image_prompt}\n\`\`\`\n\n`;
-        if (s.refined_image_prompt) md += `**润色版：**\n\n\`\`\`\n${s.refined_image_prompt}\n\`\`\`\n\n`;
-      });
-    }
-    md += `---\n\n`;
-
-    // ===== 九、视频提示词汇总 =====
-    md += `## 九、视频提示词汇总\n\n`;
-    md += `> 可直接用于 Runway / Pika / Sora / Kling 等工具。\n\n`;
-    const videoShots = shots.filter((s) => s.video_prompt);
-    if (videoShots.length === 0) {
-      md += `> 暂无\n\n`;
-    } else {
-      videoShots.forEach((s) => {
-        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
-        md += `\`\`\`\n${s.video_prompt}\n\`\`\`\n\n`;
-        if (s.refined_video_prompt) md += `**润色版：**\n\n\`\`\`\n${s.refined_video_prompt}\n\`\`\`\n\n`;
-      });
-    }
-    md += `---\n\n`;
-
-    // ===== 十、制作注意事项 =====
-    md += `## 十、制作注意事项\n\n`;
+    // ===== 七、制作注意事项 =====
+    md += `## 七、制作注意事项\n\n`;
     md += `### 1. 角色一致性\n\n`;
     if (characters.length > 0) {
       md += `- 每个角色的外貌、服装、提示词已在"角色主体"中统一设定，请严格遵循。\n`;
@@ -248,14 +246,16 @@ export default function ExportPanel({ project, projectId }) {
     md += `\n### 3. 分镜时长控制\n\n`;
     md += `- 共 ${shots.length} 个分镜，建议总时长约 ${Math.round(shots.length * 5 / 60)} 分钟。\n`;
     if (plan?.aspect_ratio) md += `\n### 4. 画面比例\n\n- 本片比例为 **${plan.aspect_ratio}**。\n`;
-    md += `\n### 5. 配音建议\n\n`;
-    md += `- 对白类镜头使用 TTS 配音（ElevenLabs / 剪映）。\n`;
-    md += `- 旁白类保持统一语调。\n`;
-    md += `- 背景音乐使用无版权素材。\n`;
-    md += `\n### 6. 推荐生成顺序\n\n`;
+    md += `\n### 5. 推荐生成顺序\n\n`;
     md += `1. 先生图，确认构图和光影\n2. 再生视频\n3. 后期合成\n`;
 
-    md += `\n---\n\n> 本文件由 AI视频生产工作台 自动生成 | V4 生产执行版\n`;
+    // Failed tasks reminder
+    if (failedTasks > 0) {
+      md += `\n### ⚠️ 需要处理的任务\n\n`;
+      md += `- 共有 ${failedTasks} 个生成任务失败，请检查上表"失败原因"列并重新生成。\n`;
+    }
+
+    md += `\n---\n\n> 本文件由 AI视频生产工作台 V6 生成任务中心版 自动生成\n`;
     return md;
   }
 
@@ -276,18 +276,19 @@ export default function ExportPanel({ project, projectId }) {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="策划案" value={plan ? 1 : 0} color="blue" />
         <StatCard label="角色" value={characters.length} color="green" />
         <StatCard label="场景" value={scenes.length} color="purple" />
         <StatCard label="分镜" value={shots.length} color="amber" />
+        <StatCard label="生成任务" value={`${tasks.length}`} color="indigo" />
       </div>
 
       {/* Production overview */}
       {shots.length > 0 && (
         <div className="bg-white border rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">生产总览</h3>
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
             <MiniStat label="分镜" value={shots.length} />
             <MiniStat label="待生成" value={pending} color="text-gray-500" />
             <MiniStat label="已生成图" value={imageDone} color="text-blue-600" />
@@ -295,8 +296,13 @@ export default function ExportPanel({ project, projectId }) {
             <MiniStat label="需重做" value={redo} color="text-red-600" />
             <MiniStat label="已通过" value={approved} color="text-green-600" />
             <MiniStat label="完成度" value={`${completionPct}%`} color="text-blue-600" />
-            <MiniStat label="预计积分" value={totalCredits} color="text-amber-600" />
+            <MiniStat label="任务成功" value={`${succeededTasks}/${tasks.length}`} color="text-green-600" />
           </div>
+          {failedTasks > 0 && (
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-red-600">⚠️ {failedTasks} 个生成任务失败，请检查并重新生成</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -319,7 +325,7 @@ export default function ExportPanel({ project, projectId }) {
       <div className="bg-white border rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
           <h3 className="font-medium text-gray-900 text-sm">制作包预览</h3>
-          <span className="text-xs text-gray-400">{shots.length} 个镜头</span>
+          <span className="text-xs text-gray-400">{shots.length} 个镜头 · {tasks.length} 个任务</span>
         </div>
         <div className="p-5">
           <pre className="bg-gray-50 rounded-lg p-4 text-xs leading-relaxed whitespace-pre-wrap max-h-[600px] overflow-y-auto text-gray-700 font-mono">
@@ -335,6 +341,7 @@ function StatCard({ label, value, color }) {
   const colors = {
     blue: "bg-blue-50 text-blue-600", green: "bg-green-50 text-green-600",
     purple: "bg-purple-50 text-purple-600", amber: "bg-amber-50 text-amber-600",
+    indigo: "bg-indigo-50 text-indigo-600",
   };
   return (
     <div className={`${colors[color] || colors.blue} rounded-lg p-4 text-center`}>
