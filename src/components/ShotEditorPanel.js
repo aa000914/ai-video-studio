@@ -262,7 +262,33 @@ export default function ShotEditorPanel({ projectId }) {
         }
 
         if (data.status === "succeeded") {
-          handlePollSuccess(type, data.resultUrl, taskUuid);
+          if (data.resultUrl) {
+            handlePollSuccess(type, data.resultUrl, taskUuid);
+          } else {
+            // Succeeded but no URL — show raw debug info
+            stopPolling();
+            const rawHint = data.raw
+              ? "服务端已打印 raw 响应，请检查 output.video_url / output.results 等字段路径。"
+              : "";
+            showMessage("任务成功，但未解析到资源链接。" + rawHint, "error");
+            if (type === "image") {
+              setGenState((prev) => ({
+                ...prev,
+                imageStatus: "failed",
+                imageError: "任务成功，但未解析到资源链接。请查看服务端日志。",
+                imageTaskId: null,
+                latestImageTask: { status: "succeeded", error_message: "未解析到资源链接", raw: data.raw },
+              }));
+            } else {
+              setGenState((prev) => ({
+                ...prev,
+                videoStatus: "failed",
+                videoError: "任务成功，但未解析到资源链接。请查看服务端日志。",
+                videoTaskId: null,
+                latestVideoTask: { status: "succeeded", error_message: "未解析到资源链接", raw: data.raw },
+              }));
+            }
+          }
         } else if (data.status === "failed") {
           handlePollError(type, data.error || "生成失败");
         }

@@ -128,23 +128,48 @@ export async function queryTask(taskId) {
   const data = await res.json();
   const output = data.output || {};
 
+  // Log raw response for debugging (safe — no API key in response body)
+  console.log("=== DashScope task query raw ===");
+  console.log(JSON.stringify(data, null, 2));
+  console.log("================================");
+
+  // Strict status mapping
+  const rawStatus = output.task_status || data.task_status || data.status || "";
   const statusMap = {
     PENDING: "PENDING",
     RUNNING: "RUNNING",
     SUCCEEDED: "SUCCEEDED",
+    SUCCESS: "SUCCEEDED",
     FAILED: "FAILED",
     CANCELED: "FAILED",
   };
+  const taskStatus = statusMap[rawStatus] || "RUNNING";
 
-  // 尝试 multimodal 格式或旧格式提取结果
-  const results = extractMultimodalResults(data).length > 0
-    ? extractMultimodalResults(data)
-    : extractLegacyResults(data);
+  // Extract result URL from various possible paths
+  const resultUrl =
+    output.video_url ||
+    output.results?.[0]?.video_url ||
+    output.results?.[0]?.url ||
+    output.result_url ||
+    output.url ||
+    data.video_url ||
+    data.result_url ||
+    data.url ||
+    null;
+
+  // Legacy multimodal / old-format fallback (for image tasks)
+  const legacyResults =
+    extractMultimodalResults(data).length > 0
+      ? extractMultimodalResults(data)
+      : extractLegacyResults(data);
+
+  const fallbackUrl = legacyResults[0]?.url || null;
 
   return {
-    status: statusMap[output.task_status] || "RUNNING",
-    results,
-    error: output.message || output.error || null,
+    status: taskStatus,
+    resultUrl: resultUrl || fallbackUrl,
+    error: output.message || output.error || data.message || null,
+    raw: data, // full raw response for debugging
   };
 }
 

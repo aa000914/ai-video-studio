@@ -6,7 +6,10 @@ import { queryTask } from "@/lib/dashscope";
  *
  * 查询 generation_tasks 状态。
  * 如果任务未完成，调用 DashScope 查询异步任务状态。
- * 如果成功，更新 DB 并写入 generated_assets。
+ *
+ * 成功时：更新 DB result_url + 写入 generated_assets（仅当 resultUrl 存在时）。
+ * 失败时：更新 DB error_message。
+ * 进行中：不更新 DB，让前端继续轮询。
  *
  * Query:
  *   id: string (generation_tasks 的 UUID)
@@ -39,7 +42,7 @@ export async function GET(req) {
     // If already in terminal state, return directly
     if (task.status === "succeeded" || task.status === "failed") {
       return Response.json({
-        success: true,
+        success: task.status === "succeeded",
         status: task.status,
         resultUrl: task.result_url || null,
         error: task.error_message || null,
@@ -63,7 +66,6 @@ export async function GET(req) {
     try {
       dashResult = await queryTask(task.task_id);
     } catch (queryErr) {
-      // 403 or network error — don't update DB, just return current state
       const errMsg = queryErr.message || "查询失败";
       return Response.json({
         success: false,
@@ -74,21 +76,33 @@ export async function GET(req) {
       });
     }
 
-    // Update DB based on DashScope result
-    if (dashResult.status === "SUCCEEDED") {
-      const resultUrl = dashResult.results?.[0]?.url;
+    const { status: dashStatus, resultUrl, error: dashError, raw: dashRaw } = dashResult;
 
+    // Still running — stay in DB as running, return to frontend for polling
+    if (dashStatus === "RUNNING" || dashStatus === "PENDING") {
+      return Response.json({
+        success: true,
+        status: "running",
+        resultUrl: null,
+        error: null,
+        raw: dashRaw,
+      });
+    }
+
+    // Succeeded
+    if (dashStatus === "SUCCEEDED") {
       if (resultUrl) {
+        // Update DB
         await supabase
           .from("generation_tasks")
           .update({
             status: "succeeded",
             result_url: resultUrl,
-            raw: dashResult,
+            raw: dashRaw,
           })
           .eq("id", id);
 
-        // Write to generated_assets
+        // Write to generated_assets (only when resultUrl exists)
         await supabase
           .from("generated_assets")
           .insert({
@@ -101,12 +115,13 @@ export async function GET(req) {
             model: task.model,
           });
 
-        // If this task has a shot, try to update shot status
+        // If this task has a shot, update shot status and url field
         if (task.shot_id) {
           const statusField = task.type === "image" ? "已生成图" : "已生成视频";
+          const urlField = task.type === "image" ? "image_url" : "video_url";
           await supabase
             .from("shots")
-            .update({ status: statusField, [task.type === "image" ? "image_url" : "video_url"]: resultUrl })
+            .update({ status: statusField, [urlField]: resultUrl })
             .eq("id", task.shot_id);
         }
 
@@ -115,37 +130,34 @@ export async function GET(req) {
           status: "succeeded",
           resultUrl,
           error: null,
-          raw: dashResult,
+          raw: dashRaw,
         });
       }
 
-      // Succeeded but no URL
+      // Succeeded but no URL parsed — save raw for debugging, don't mark as failed
       await supabase
         .from("generation_tasks")
-        .update({
-          status: "failed",
-          error_message: "生成成功但未返回资源 URL",
-          raw: dashResult,
-        })
+        .update({ raw: dashRaw })
         .eq("id", id);
 
       return Response.json({
         success: false,
-        status: "failed",
-        error: "生成成功但未返回资源 URL",
+        status: "succeeded",
         resultUrl: null,
-        raw: dashResult,
+        error: "任务成功，但未解析到资源链接，请查看服务端 raw 输出。",
+        raw: dashRaw,
       });
     }
 
-    if (dashResult.status === "FAILED") {
-      const errMsg = dashResult.error || "生成失败";
+    // Failed
+    if (dashStatus === "FAILED") {
+      const errMsg = dashError || "生成失败";
       await supabase
         .from("generation_tasks")
         .update({
           status: "failed",
           error_message: errMsg,
-          raw: dashResult,
+          raw: dashRaw,
         })
         .eq("id", id);
 
@@ -154,17 +166,17 @@ export async function GET(req) {
         status: "failed",
         error: errMsg,
         resultUrl: null,
-        raw: dashResult,
+        raw: dashRaw,
       });
     }
 
-    // Still running
+    // Unexpected status — keep in running for retry
     return Response.json({
       success: true,
       status: "running",
       resultUrl: null,
       error: null,
-      raw: dashResult,
+      raw: dashRaw,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
