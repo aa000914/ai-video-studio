@@ -11,6 +11,15 @@ import {
   Plus,
   Play,
   ChevronDown,
+  FileText,
+  MessageSquare,
+  Monitor,
+  Grid3X3,
+  Tv,
+  Palette,
+  Star,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import CreateProjectModal from "@/components/CreateProjectModal";
 
@@ -25,6 +34,48 @@ const PLACEHOLDER = `例如：
 #视频要求#12个分镜，约1分钟，包含台词和旁白。
 #场景要求#咸阳城门、秦王殿、秦宫长廊。
 #分镜内容#李天行看到扶苏寻师皇榜，进入秦王宫，与淳于越发生冲突，最后展现现代知识震惊众人。`;
+
+const DEMO_PROMPTS = {
+  "秦朝穿越短剧": `#画风要求#电影级写实风，暖色调，秦朝历史背景。
+#角色要求#主角李天行，现代青年穿越秦朝，机敏果敢。
+#视频要求#12个分镜，约1分钟，包含台词和旁白。
+#场景要求#咸阳城门、秦王殿、秦宫长廊、市集街道。
+#分镜内容#李天行穿越到秦朝，目睹扶苏寻师皇榜，决定入宫一展才华，与朝中大臣展开智慧较量。`,
+  "末日穹顶城市": `#画风要求#赛博朋克风，冷色调，末日废墟感。
+#角色要求#主角林夜，穹顶城市工程师，发现城市能源系统暗藏秘密。
+#视频要求#12个分镜，约1分钟，包含台词和旁白。
+#场景要求#穹顶控制室、能源核心区、下城暗巷、穹顶观景台。
+#分镜内容#林夜在检修能源系统时发现异常数据，追踪真相时卷入权力斗争，最终面临拯救城市还是揭露真相的抉择。`,
+  "文博青花瓷复原": `#画风要求#电影级写实风，典雅暖色调，元代历史背景。
+#角色要求#文物修复师苏婉，专注青花瓷修复与研究。
+#视频要求#12个分镜，约1分钟，包含旁白。
+#场景要求#博物馆修复室、元代窑址、海上丝绸之路码头、现代展厅。
+#分镜内容#苏婉在修复一件元代青花瓷时，通过AI技术还原其制作过程，追溯从景德镇到波斯的文化交流之路。`,
+};
+
+const DEMO_PROJECTS = [
+  {
+    title: "秦朝穿越短剧",
+    tags: "短剧 · 历史",
+    description: "现代青年穿越秦朝，卷入扶苏寻师与朝堂权谋。",
+    rating: "9.4",
+    coverGradient: "linear-gradient(135deg, #3b1d0f, #b45309, #111827)",
+  },
+  {
+    title: "末日穹顶城市",
+    tags: "短剧 · 科幻",
+    description: "人类最后的庇护所，穹顶之下的生存博弈。",
+    rating: "9.2",
+    coverGradient: "linear-gradient(135deg, #0f172a, #1e3a8a, #94a3b8)",
+  },
+  {
+    title: "文博青花瓷复原",
+    tags: "纪录片 · 文博",
+    description: "AI 助力文物数字复原，重现千年工艺之美。",
+    rating: "9.6",
+    coverGradient: "linear-gradient(135deg, #eff6ff, #1d4ed8, #0f172a)",
+  },
+];
 
 const FLOW_CARDS = [
   {
@@ -53,40 +104,58 @@ const FLOW_CARDS = [
   },
 ];
 
-const DEMO_PROJECTS = [
+const CONFIG_ITEMS = [
   {
-    title: "秦朝穿越短剧",
-    type: "AI短剧",
-    platform: "抖音",
-    description:
-      "现代青年李天行意外穿越到秦朝，凭借现代知识和机敏头脑，在秦王宫步步为营，用智慧震惊众人。",
-    coverGradient: "from-amber-500 via-orange-600 to-red-600",
+    key: "contentType",
+    label: "内容类型",
+    icon: FileText,
+    options: CONTENT_TYPES,
+    displayMap: (v) => v,
   },
   {
-    title: "末日穹顶城市",
-    type: "AI短剧",
-    platform: "B站",
-    description:
-      "在封闭的穹顶城市中，幸存者们面临资源匮乏与人性考验，一场关乎存亡的博弈正在展开。",
-    coverGradient: "from-teal-500 via-cyan-600 to-blue-700",
+    key: "mode",
+    label: "创作模式",
+    icon: MessageSquare,
+    options: MODES,
+    displayMap: (v) => v,
   },
   {
-    title: "文博青花瓷复原",
-    type: "文博视频",
-    platform: "小红书",
-    description:
-      "用 AI 技术还原元代青花瓷的制作工艺，讲述海上丝绸之路背后的文化与历史故事。",
-    coverGradient: "from-blue-500 via-indigo-500 to-purple-600",
+    key: "aspectRatio",
+    label: "画面比例",
+    icon: Monitor,
+    options: ASPECT_RATIOS,
+    displayMap: (v) => v,
+  },
+  {
+    key: "storyboardCount",
+    label: "分镜数量",
+    icon: Grid3X3,
+    options: [6, 12, 18, 24, 30],
+    displayMap: (v) => `${v}`,
+  },
+  {
+    key: "episodeCount",
+    label: "剧集模式",
+    icon: Tv,
+    options: [1, 3, 5, 10],
+    displayMap: (v) => (v === 1 ? "单集" : `多集 (${v}集)`),
+  },
+  {
+    key: "artStyle",
+    label: "画风",
+    icon: Palette,
+    options: ART_STYLES,
+    displayMap: (v) => v,
   },
 ];
 
 const COVER_GRADIENTS = [
-  "from-indigo-600 to-purple-700",
-  "from-blue-600 to-cyan-500",
-  "from-amber-500 to-rose-600",
-  "from-emerald-600 to-teal-500",
-  "from-pink-500 to-purple-600",
-  "from-cyan-500 to-blue-600",
+  "linear-gradient(135deg, #312e81, #6366f1)",
+  "linear-gradient(135deg, #1e3a8a, #06b6d4)",
+  "linear-gradient(135deg, #7c2d12, #f97316)",
+  "linear-gradient(135deg, #064e3b, #14b8a6)",
+  "linear-gradient(135deg, #831843, #a855f7)",
+  "linear-gradient(135deg, #0f172a, #3b82f6)",
 ];
 
 function getCoverGradient(title) {
@@ -94,9 +163,93 @@ function getCoverGradient(title) {
   return COVER_GRADIENTS[sum % COVER_GRADIENTS.length];
 }
 
-const pillSelectClass =
-  "appearance-none bg-transparent text-white/80 text-xs cursor-pointer focus:outline-none pr-5 pl-2 py-0.5 text-center";
+/* ---- Config Dropdown ---- */
+function ConfigDropdown({
+  icon: Icon,
+  label,
+  value,
+  options,
+  displayMap,
+  onChange,
+}) {
+  const [open, setOpen] = useState(false);
 
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2.5 w-full text-left rounded-2xl px-[18px] py-3 min-w-[150px] h-[58px] transition-all"
+        style={{
+          background: "rgba(15,23,42,0.68)",
+          border: "1px solid rgba(255,255,255,0.10)",
+        }}
+      >
+        <Icon size={16} className="text-gray-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] text-gray-500 leading-tight">
+            {label}
+          </div>
+          <div className="text-sm text-white truncate">
+            {displayMap ? displayMap(value) : value}
+          </div>
+        </div>
+        <ChevronDown
+          size={14}
+          className={`text-gray-500 shrink-0 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            className="absolute top-full left-0 mt-1.5 w-full z-20 rounded-2xl overflow-hidden shadow-2xl"
+            style={{
+              background: "rgba(15,23,42,0.95)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            {options.map((opt) => {
+              const optValue =
+                typeof opt === "number" ? opt : opt;
+              const currentValue =
+                typeof value === "number" ? value : value;
+              const isSelected = optValue === currentValue;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onChange(
+                      typeof opt === "number" ? opt : opt
+                    );
+                    setOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-all ${
+                    isSelected
+                      ? "text-white bg-white/[0.08]"
+                      : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {displayMap ? displayMap(opt) : opt}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---- Main Component ---- */
 export default function HomePageClient({ initialProjects, initialError }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
@@ -113,6 +266,31 @@ export default function HomePageClient({ initialProjects, initialError }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState("projects");
   const [showDemoPopover, setShowDemoPopover] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  function getValue(key) {
+    const map = {
+      contentType,
+      mode,
+      aspectRatio,
+      storyboardCount,
+      episodeCount,
+      artStyle,
+    };
+    return map[key];
+  }
+
+  function setValue(key, val) {
+    const setters = {
+      contentType: setContentType,
+      mode: setMode,
+      aspectRatio: setAspectRatio,
+      storyboardCount: setStoryboardCount,
+      episodeCount: setEpisodeCount,
+      artStyle: setArtStyle,
+    };
+    setters[key](val);
+  }
 
   async function handleGenerate() {
     if (!prompt.trim()) {
@@ -152,12 +330,26 @@ export default function HomePageClient({ initialProjects, initialError }) {
     }
   }
 
+  function handleUseInspiration(demoTitle) {
+    const demoPrompt = DEMO_PROMPTS[demoTitle];
+    if (demoPrompt) {
+      setPrompt(demoPrompt);
+      setActiveTab("projects");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   async function handleCreateDemo(demo) {
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(demo),
+        body: JSON.stringify({
+          title: demo.title,
+          type: demo.tags.includes("短剧") ? "AI短剧" : "文博视频",
+          platform: "抖音",
+          description: demo.description,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "创建失败");
@@ -173,225 +365,226 @@ export default function HomePageClient({ initialProjects, initialError }) {
     router.push(`/projects/${newProject.id}`);
   }
 
+  async function handleDeleteProject(projectId) {
+    if (deletingId !== projectId) {
+      setDeletingId(projectId);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("删除失败");
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setDeletingId(null);
+    } catch (err) {
+      setError(err.message);
+      setDeletingId(null);
+    }
+  }
+
   const demoTabActive = activeTab === "inspiration";
 
   return (
-    <div className="h-full overflow-auto bg-slate-950">
-      {/* ===== Hero Section ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-indigo-950 via-indigo-950/40 to-slate-950">
-        {/* Decorative blur blobs */}
+    <div className="h-full overflow-auto">
+      {/* ============================================ */}
+      {/* HERO SECTION — dark gradient 560px            */}
+      {/* ============================================ */}
+      <section
+        className="relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(180deg, #070b1f 0%, #11183a 50%, #2a1265 100%)",
+          minHeight: "560px",
+        }}
+      >
+        {/* Decorative blur orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 -left-32 w-[450px] h-[450px] bg-indigo-500/15 rounded-full blur-[120px]" />
-          <div className="absolute top-1/2 -right-32 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px]" />
-          <div className="absolute -bottom-24 left-1/3 w-[350px] h-[350px] bg-blue-500/10 rounded-full blur-[100px]" />
+          <div
+            className="absolute top-[-60px] left-[-80px] w-[500px] h-[500px] rounded-full blur-3xl opacity-30"
+            style={{ background: "rgba(99,102,241,0.3)" }}
+          />
+          <div
+            className="absolute bottom-[-80px] right-[-60px] w-[450px] h-[450px] rounded-full blur-3xl opacity-25"
+            style={{ background: "rgba(139,92,246,0.3)" }}
+          />
         </div>
 
-        <div className="relative max-w-4xl mx-auto px-6 pt-14 pb-16 md:pt-18 md:pb-20">
+        <div
+          className="relative mx-auto px-6 pt-16 pb-14"
+          style={{ maxWidth: "1100px" }}
+        >
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center mb-3 tracking-tight leading-tight">
+          <h1
+            className="text-center text-white leading-tight"
+            style={{ fontSize: "52px", fontWeight: 800 }}
+          >
             有什么新的故事灵感？
           </h1>
-          <p className="text-white/40 text-center text-sm md:text-base mb-10 max-w-2xl mx-auto leading-relaxed">
+          <p
+            className="text-center mt-4"
+            style={{ fontSize: "16px", color: "#cbd5e1" }}
+          >
             输入你的故事灵感、风格和分镜要求，AI
             将为你生成策划案、角色、场景和分镜
           </p>
 
-          {/* Glassmorphism AI Console */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.06] rounded-3xl p-5 md:p-6 shadow-2xl shadow-black/30">
+          {/* AI Console */}
+          <div
+            className="mx-auto mt-10 p-6"
+            style={{
+              maxWidth: "980px",
+              background: "rgba(15,23,42,0.58)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              backdropFilter: "blur(20px)",
+              borderRadius: "24px",
+              boxShadow: "0 30px 80px rgba(0,0,0,0.35)",
+            }}
+          >
             {/* Textarea */}
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={5}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-2xl px-4 py-3.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 resize-none transition-all"
               placeholder={PLACEHOLDER}
+              className="w-full bg-transparent border-none text-white text-[15px] leading-relaxed placeholder-[#94a3b8] focus:outline-none resize-none"
+              style={{ height: "140px" }}
             />
 
-            {/* Config Pills */}
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  内容类型
-                </span>
-                <select
-                  value={contentType}
-                  onChange={(e) => setContentType(e.target.value)}
-                  className={pillSelectClass}
-                >
-                  {CONTENT_TYPES.map((t) => (
-                    <option key={t} value={t} className="bg-slate-800">
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  创作模式
-                </span>
-                <select
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value)}
-                  className={pillSelectClass}
-                >
-                  {MODES.map((m) => (
-                    <option key={m} value={m} className="bg-slate-800">
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  画面比例
-                </span>
-                <select
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                  className={pillSelectClass}
-                >
-                  {ASPECT_RATIOS.map((r) => (
-                    <option key={r} value={r} className="bg-slate-800">
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  分镜数量
-                </span>
-                <input
-                  type="number"
-                  value={storyboardCount}
-                  onChange={(e) =>
-                    setStoryboardCount(Number(e.target.value))
-                  }
-                  min={6}
-                  max={30}
-                  className="appearance-none bg-transparent text-white/80 text-xs w-10 text-center focus:outline-none"
+            {/* Config row */}
+            <div className="flex flex-wrap gap-3 mt-5">
+              {CONFIG_ITEMS.map((item) => (
+                <ConfigDropdown
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  value={getValue(item.key)}
+                  options={item.options}
+                  displayMap={item.displayMap}
+                  onChange={(val) => setValue(item.key, val)}
                 />
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  剧集模式
-                </span>
-                <select
-                  value={episodeCount}
-                  onChange={(e) =>
-                    setEpisodeCount(Number(e.target.value))
-                  }
-                  className={pillSelectClass}
-                >
-                  <option value={1} className="bg-slate-800">
-                    单集
-                  </option>
-                  <option value={3} className="bg-slate-800">
-                    多集 (3集)
-                  </option>
-                  <option value={5} className="bg-slate-800">
-                    多集 (5集)
-                  </option>
-                  <option value={10} className="bg-slate-800">
-                    多集 (10集)
-                  </option>
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.06] rounded-full px-3 py-1.5">
-                <span className="text-[10px] text-gray-500 shrink-0">
-                  画风
-                </span>
-                <select
-                  value={artStyle}
-                  onChange={(e) => setArtStyle(e.target.value)}
-                  className={pillSelectClass}
-                >
-                  {ART_STYLES.map((s) => (
-                    <option key={s} value={s} className="bg-slate-800">
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              ))}
             </div>
 
-            {/* Action Buttons */}
-            <div className="mt-5 flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:from-indigo-400 hover:to-purple-500 disabled:opacity-50 transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      AI 生成策划案中...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16} />
-                      AI 生成策划案
-                    </>
-                  )}
-                </button>
+            {/* Action buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+              {/* Primary: AI Generate */}
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                style={{
+                  width: "320px",
+                  height: "56px",
+                  background:
+                    "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                  borderRadius: "18px",
+                  boxShadow: "0 18px 40px rgba(79,70,229,0.35)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform =
+                    "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform =
+                    "translateY(0)";
+                }}
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    AI 生成策划案中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    AI 生成策划案
+                  </>
+                )}
+              </button>
 
-                {/* Demo project popover */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowDemoPopover(!showDemoPopover)}
-                    className="bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5"
-                  >
-                    <Play size={14} />
-                    创建演示项目
-                    <ChevronDown size={14} />
-                  </button>
-                  {showDemoPopover && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setShowDemoPopover(false)}
-                      />
-                      <div className="absolute top-full left-0 mt-2 w-60 bg-[#111128] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 z-20 overflow-hidden">
-                        {DEMO_PROJECTS.map((demo) => (
-                          <button
-                            key={demo.title}
-                            onClick={() => {
-                              setShowDemoPopover(false);
-                              handleCreateDemo(demo);
+              {/* Secondary: Demo popover */}
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setShowDemoPopover(!showDemoPopover)
+                  }
+                  className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-white/70 hover:text-white rounded-2xl transition-all"
+                  style={{
+                    background: "rgba(15,23,42,0.50)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <Play size={14} />
+                  创建演示项目
+                  <ChevronDown size={14} />
+                </button>
+                {showDemoPopover && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() =>
+                        setShowDemoPopover(false)
+                      }
+                    />
+                    <div
+                      className="absolute top-full left-0 mt-2 w-60 z-20 rounded-2xl overflow-hidden shadow-2xl"
+                      style={{
+                        background: "rgba(15,23,42,0.98)",
+                        border:
+                          "1px solid rgba(255,255,255,0.10)",
+                        backdropFilter: "blur(20px)",
+                      }}
+                    >
+                      {DEMO_PROJECTS.map((demo) => (
+                        <button
+                          key={demo.title}
+                          onClick={() => {
+                            setShowDemoPopover(false);
+                            handleCreateDemo(demo);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-white/[0.05] transition-all flex items-center gap-3"
+                        >
+                          <div
+                            className="w-9 h-9 rounded-xl shrink-0"
+                            style={{
+                              background:
+                                demo.coverGradient,
                             }}
-                            className="w-full text-left px-4 py-3 hover:bg-white/[0.05] transition-all flex items-center gap-3"
-                          >
-                            <div
-                              className={`w-8 h-8 rounded-lg bg-gradient-to-br ${demo.coverGradient} shrink-0`}
-                            />
-                            <div>
-                              <div className="text-sm text-white font-medium">
-                                {demo.title}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {demo.type}
-                              </div>
+                          />
+                          <div>
+                            <div className="text-sm text-white font-medium">
+                              {demo.title}
                             </div>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5"
-                >
-                  <Plus size={14} />
-                  新建项目
-                </button>
+                            <div className="text-xs text-gray-500">
+                              {demo.tags}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Secondary: New Project */}
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-white/70 hover:text-white rounded-2xl transition-all"
+                style={{
+                  background: "rgba(15,23,42,0.50)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <Plus size={14} />
+                新建项目
+              </button>
+
+              {/* Error + Boss Demo */}
+              <div className="flex items-center gap-3 ml-auto">
                 {error && (
-                  <span className="text-red-400 text-xs">{error}</span>
+                  <span className="text-red-400 text-xs">
+                    {error}
+                  </span>
                 )}
                 <button
                   onClick={() => setShowBossDemo(true)}
@@ -405,168 +598,355 @@ export default function HomePageClient({ initialProjects, initialError }) {
         </div>
       </section>
 
-      {/* ===== Capability Cards ===== */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 -mt-6 pb-8">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {FLOW_CARDS.map((card) => (
-            <div
-              key={card.title}
-              className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group shadow-lg shadow-black/10"
-            >
+      {/* ============================================ */}
+      {/* LIGHT CONTENT AREA — #f6f7fb                    */}
+      {/* ============================================ */}
+      <div style={{ background: "#f6f7fb" }}>
+        <div
+          className="mx-auto px-6"
+          style={{ maxWidth: "1200px" }}
+        >
+          {/* ===== Capability Cards (floating up) ===== */}
+          <div
+            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            style={{ marginTop: "-48px" }}
+          >
+            {FLOW_CARDS.map((card) => (
               <div
-                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-3 shadow-lg`}
-              >
-                <card.icon size={18} className="text-white" />
-              </div>
-              <h3 className="font-semibold text-white text-sm mb-1.5 group-hover:text-white/90">
-                {card.title}
-              </h3>
-              <p className="text-xs text-gray-500 leading-relaxed group-hover:text-gray-400">
-                {card.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== Projects Section ===== */}
-      <section className="max-w-5xl mx-auto px-6 py-6 pb-20">
-        {/* Tabs */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab("inspiration")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                demoTabActive
-                  ? "bg-white/[0.08] text-white shadow-sm"
-                  : "text-gray-500 hover:text-white/70"
-              }`}
-            >
-              灵感广场
-            </button>
-            <button
-              onClick={() => setActiveTab("projects")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                !demoTabActive
-                  ? "bg-white/[0.08] text-white shadow-sm"
-                  : "text-gray-500 hover:text-white/70"
-              }`}
-            >
-              我的项目
-              {projects.length > 0 && (
-                <span className="ml-1.5 text-xs text-gray-500">
-                  {projects.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Inspiration tab: Demo project cards */}
-        {demoTabActive && (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {DEMO_PROJECTS.map((demo) => (
-              <div
-                key={demo.title}
-                onClick={() => handleCreateDemo(demo)}
-                className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-white/[0.12] hover:bg-white/[0.05] transition-all group shadow-lg shadow-black/10"
+                key={card.title}
+                className="bg-white p-7 transition-all"
+                style={{
+                  borderRadius: "22px",
+                  boxShadow:
+                    "0 20px 50px rgba(15,23,42,0.08)",
+                  border: "1px solid rgba(15,23,42,0.04)",
+                }}
               >
                 <div
-                  className={`h-36 bg-gradient-to-br ${demo.coverGradient} relative overflow-hidden`}
+                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 shadow-md`}
+                  style={{ width: "48px", height: "48px" }}
                 >
-                  <div className="absolute inset-0 bg-black/10" />
-                  <div className="absolute bottom-3 left-4 right-4">
-                    <span className="text-xs bg-white/20 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full border border-white/10">
-                      {demo.type}
-                    </span>
-                  </div>
+                  <card.icon
+                    size={20}
+                    className="text-white"
+                  />
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-white text-sm mb-1.5 group-hover:text-white/90">
-                    {demo.title}
-                  </h3>
-                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">
-                    {demo.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">
-                      {demo.platform}
-                    </span>
-                    <span className="text-xs text-indigo-400 font-medium opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1">
-                      创建此项目 <Play size={12} />
-                    </span>
-                  </div>
-                </div>
+                <h3
+                  className="mb-2"
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                  }}
+                >
+                  {card.title}
+                </h3>
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#64748b",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {card.desc}
+                </p>
               </div>
             ))}
           </div>
-        )}
 
-        {/* Projects tab: User project cards */}
-        {!demoTabActive && (
-          <>
-            {projects.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                  <Film size={24} className="text-gray-600" />
-                </div>
-                <p className="text-gray-500 text-sm mb-1">暂无项目</p>
-                <p className="text-xs text-gray-600">
-                  在上方输入灵感，AI 将自动创建第一个项目
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {projects.map((p) => (
+          {/* ===== Tabs ===== */}
+          <div className="flex items-center gap-8 pt-12 pb-6">
+            <button
+              onClick={() => setActiveTab("inspiration")}
+              className="relative pb-2 text-lg font-semibold transition-all"
+              style={{
+                color: demoTabActive ? "#0f172a" : "#94a3b8",
+              }}
+            >
+              灵感广场
+              {demoTabActive && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
+                  style={{
+                    height: "3px",
+                    background:
+                      "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                  }}
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("projects")}
+              className="relative pb-2 text-lg font-semibold transition-all"
+              style={{
+                color: !demoTabActive ? "#0f172a" : "#94a3b8",
+              }}
+            >
+              我的项目
+              {projects.length > 0 && (
+                <span className="ml-1.5 text-sm text-gray-400">
+                  {projects.length}
+                </span>
+              )}
+              {!demoTabActive && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
+                  style={{
+                    height: "3px",
+                    background:
+                      "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                  }}
+                />
+              )}
+            </button>
+          </div>
+
+          {/* ===== Inspiration Tab ===== */}
+          {demoTabActive && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pb-16">
+              {DEMO_PROJECTS.map((demo) => (
+                <div
+                  key={demo.title}
+                  className="bg-white overflow-hidden transition-all hover:shadow-lg"
+                  style={{
+                    borderRadius: "24px",
+                    boxShadow:
+                      "0 8px 30px rgba(15,23,42,0.06)",
+                    height: "300px",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {/* Cover */}
                   <div
-                    key={p.id}
-                    onClick={() => router.push(`/projects/${p.id}`)}
-                    className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-white/[0.12] hover:bg-white/[0.05] transition-all group shadow-lg shadow-black/10"
+                    className="relative shrink-0"
+                    style={{
+                      height: "170px",
+                      background: demo.coverGradient,
+                    }}
                   >
-                    <div
-                      className={`h-32 bg-gradient-to-br ${getCoverGradient(p.title)} relative overflow-hidden`}
-                    >
-                      <div className="absolute inset-0 bg-black/10" />
-                      <div className="absolute top-3 right-3">
-                        <span className="text-xs bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/10">
-                          {p.status || "策划中"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-white text-sm mb-1.5 truncate group-hover:text-white/90">
-                        {p.title}
-                      </h3>
-                      {p.description && (
-                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">
-                          {p.description}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-1.5">
-                          {p.type && (
-                            <span className="text-[10px] bg-white/[0.04] text-gray-400 px-2 py-0.5 rounded-full border border-white/[0.06]">
-                              {p.type}
-                            </span>
-                          )}
-                          {p.platform && (
-                            <span className="text-[10px] bg-white/[0.04] text-gray-400 px-2 py-0.5 rounded-full border border-white/[0.06]">
-                              {p.platform}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-gray-600">
-                          {new Date(p.created_at).toLocaleDateString("zh-CN")}
-                        </span>
-                      </div>
+                    <div className="absolute inset-0 bg-black/10" />
+                    <div className="absolute top-3 left-4">
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full"
+                        style={{
+                          background:
+                            "rgba(255,255,255,0.18)",
+                          color: "white",
+                          border:
+                            "1px solid rgba(255,255,255,0.15)",
+                          backdropFilter: "blur(8px)",
+                        }}
+                      >
+                        {demo.tags}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </section>
+
+                  {/* Info */}
+                  <div className="flex-1 p-4 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-[#0f172a] text-base mb-1">
+                        {demo.title}
+                      </h3>
+                      <p
+                        className="text-sm leading-relaxed line-clamp-2"
+                        style={{ color: "#64748b" }}
+                      >
+                        {demo.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-1">
+                        <Star
+                          size={14}
+                          className="text-amber-400 fill-amber-400"
+                        />
+                        <span className="text-sm font-semibold text-[#0f172a]">
+                          {demo.rating}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() =>
+                          handleUseInspiration(
+                            demo.title
+                          )
+                        }
+                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                          color: "white",
+                        }}
+                      >
+                        使用这个灵感
+                        <Play size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ===== My Projects Tab ===== */}
+          {!demoTabActive && (
+            <>
+              {projects.length === 0 ? (
+                <div className="text-center py-24 pb-20">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      background: "rgba(15,23,42,0.04)",
+                    }}
+                  >
+                    <Film size={24} color="#94a3b8" />
+                  </div>
+                  <p
+                    className="text-sm mb-1"
+                    style={{ color: "#64748b" }}
+                  >
+                    暂无项目
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: "#94a3b8" }}
+                  >
+                    在上方输入灵感，AI 将自动创建第一个项目
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pb-16">
+                  {projects.map((p) => (
+                    <div
+                      key={p.id}
+                      className="bg-white overflow-hidden transition-all hover:shadow-lg group"
+                      style={{
+                        borderRadius: "24px",
+                        boxShadow:
+                          "0 8px 30px rgba(15,23,42,0.06)",
+                      }}
+                    >
+                      {/* Cover */}
+                      <div
+                        className="h-32 relative overflow-hidden"
+                        style={{
+                          background:
+                            getCoverGradient(p.title),
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-black/10" />
+                        <div className="absolute top-3 right-3 flex gap-1.5">
+                          <span
+                            className="text-xs px-2.5 py-0.5 rounded-full"
+                            style={{
+                              background:
+                                "rgba(255,255,255,0.18)",
+                              color: "white",
+                              border:
+                                "1px solid rgba(255,255,255,0.15)",
+                              backdropFilter: "blur(8px)",
+                            }}
+                          >
+                            {p.status || "策划中"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-[#0f172a] text-sm mb-1.5 truncate">
+                          {p.title}
+                        </h3>
+                        {p.description && (
+                          <p
+                            className="text-xs line-clamp-2 mb-3 leading-relaxed"
+                            style={{ color: "#64748b" }}
+                          >
+                            {p.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-1.5 flex-wrap">
+                            {p.type && (
+                              <span
+                                className="text-[10px] px-2 py-0.5 rounded-full"
+                                style={{
+                                  background:
+                                    "rgba(99,102,241,0.08)",
+                                  color: "#6366f1",
+                                }}
+                              >
+                                {p.type}
+                              </span>
+                            )}
+                            {p.platform && (
+                              <span
+                                className="text-[10px] px-2 py-0.5 rounded-full"
+                                style={{
+                                  background:
+                                    "rgba(15,23,42,0.04)",
+                                  color: "#64748b",
+                                }}
+                              >
+                                {p.platform}
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className="text-[10px]"
+                            style={{ color: "#94a3b8" }}
+                          >
+                            {new Date(
+                              p.created_at
+                            ).toLocaleDateString("zh-CN")}
+                          </span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                          <button
+                            onClick={() =>
+                              router.push(
+                                `/projects/${p.id}`
+                              )
+                            }
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-all"
+                            style={{
+                              background:
+                                "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                              color: "white",
+                            }}
+                          >
+                            进入项目
+                            <ExternalLink size={12} />
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleDeleteProject(p.id)
+                            }
+                            className={`py-2 px-3 text-xs font-medium rounded-xl transition-all ${
+                              deletingId === p.id
+                                ? "bg-red-500 text-white"
+                                : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+                            }`}
+                          >
+                            {deletingId === p.id ? (
+                              "确认删除？"
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ===== Boss Demo Modal ===== */}
       {showBossDemo && (
@@ -575,7 +955,14 @@ export default function HomePageClient({ initialProjects, initialError }) {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowBossDemo(false)}
           />
-          <div className="relative bg-[#111128] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 p-8 w-full max-w-lg mx-4 max-h-[80vh] overflow-auto">
+          <div
+            className="relative p-8 w-full max-w-lg mx-4 max-h-[80vh] overflow-auto shadow-2xl"
+            style={{
+              background: "#111128",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "24px",
+            }}
+          >
             <button
               onClick={() => setShowBossDemo(false)}
               className="absolute top-4 right-4 text-gray-500 hover:text-white text-xl leading-none transition-colors"
@@ -614,7 +1001,13 @@ export default function HomePageClient({ initialProjects, initialError }) {
                 },
               ].map((item) => (
                 <div key={item.num} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-bold shrink-0 mt-0.5 shadow-md shadow-indigo-500/20">
+                  <div
+                    className="w-8 h-8 rounded-full text-white flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    }}
+                  >
                     {item.num}
                   </div>
                   <div>
@@ -630,7 +1023,11 @@ export default function HomePageClient({ initialProjects, initialError }) {
             </div>
             <button
               onClick={() => setShowBossDemo(false)}
-              className="mt-8 w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl text-sm font-medium hover:from-indigo-400 hover:to-purple-500 transition-all shadow-lg shadow-indigo-500/20"
+              className="mt-8 w-full text-white py-2.5 rounded-xl text-sm font-medium transition-all"
+              style={{
+                background:
+                  "linear-gradient(90deg, #6366f1, #8b5cf6)",
+              }}
             >
               知道了
             </button>
