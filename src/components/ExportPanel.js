@@ -176,7 +176,35 @@ export default function ExportPanel({ project, projectId }) {
     }
     md += `---\n\n`;
 
-    // ===== 六、图片提示词汇总 =====
+    // ===== 六、已生成图片链接 =====
+    md += `## 六、已生成图片链接\n\n`;
+    const imageShotsWithUrls = shots.filter((s) => s.image_url);
+    if (imageShotsWithUrls.length === 0) {
+      md += `> 暂无已生成图片\n\n`;
+    } else {
+      imageShotsWithUrls.forEach((s) => {
+        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
+        md += `![镜头${s.shot_number}](${s.image_url})\n\n`;
+        md += `[打开原图](${s.image_url})\n\n`;
+      });
+    }
+    md += `---\n\n`;
+
+    // ===== 七、已生成视频链接 =====
+    md += `## 七、已生成视频链接\n\n`;
+    const videoShotsWithUrls = shots.filter((s) => s.video_url);
+    if (videoShotsWithUrls.length === 0) {
+      md += `> 暂无已生成视频\n\n`;
+    } else {
+      videoShotsWithUrls.forEach((s) => {
+        md += `### 镜头 ${s.shot_number} — ${s.scene_name || ""}\n\n`;
+        md += `[视频预览](${s.video_url})\n\n`;
+        md += `[下载视频](${s.video_url})\n\n`;
+      });
+    }
+    md += `---\n\n`;
+
+    // ===== 八、图片提示词汇总 =====
     md += `## 六、图片提示词汇总\n\n`;
     md += `> 可直接用于 Midjourney / Stable Diffusion / DALL·E 等工具。\n\n`;
     const imageShots = shots.filter((s) => s.image_prompt);
@@ -191,8 +219,8 @@ export default function ExportPanel({ project, projectId }) {
     }
     md += `---\n\n`;
 
-    // ===== 七、视频提示词汇总 =====
-    md += `## 七、视频提示词汇总\n\n`;
+    // ===== 九、视频提示词汇总 =====
+    md += `## 九、视频提示词汇总\n\n`;
     md += `> 可直接用于 Runway / Pika / Sora / Kling 等工具。\n\n`;
     const videoShots = shots.filter((s) => s.video_prompt);
     if (videoShots.length === 0) {
@@ -206,8 +234,8 @@ export default function ExportPanel({ project, projectId }) {
     }
     md += `---\n\n`;
 
-    // ===== 八、制作注意事项 =====
-    md += `## 八、制作注意事项\n\n`;
+    // ===== 十、制作注意事项 =====
+    md += `## 十、制作注意事项\n\n`;
     md += `### 1. 角色一致性\n\n`;
     if (characters.length > 0) {
       md += `- 每个角色的外貌、服装、提示词已在"角色主体"中统一设定，请严格遵循。\n`;

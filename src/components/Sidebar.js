@@ -32,7 +32,7 @@ export default function Sidebar() {
     <aside
       className="h-screen flex flex-col shrink-0"
       style={{
-        width: "300px",
+        width: "280px",
         background: "#080d1a",
         borderRight: "1px solid rgba(255,255,255,0.08)",
       }}

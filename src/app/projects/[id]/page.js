@@ -11,21 +11,12 @@ import ExportPanel from "@/components/ExportPanel";
 
 const STEPS = [
   { key: "plan", label: "策划案", icon: "📋" },
-  { key: "characters", label: "角色主体", icon: "👤" },
-  { key: "scenes", label: "场景主体", icon: "🏛" },
+  { key: "subjects", label: "主体库", icon: "🎭" },
   { key: "storyboard", label: "分镜剧本", icon: "📜" },
   { key: "editor", label: "分镜编辑", icon: "✂️" },
-  { key: "export", label: "导出制作包", icon: "📦" },
+  { key: "generate", label: "生图/生视频", icon: "🎨" },
+  { key: "export", label: "导出", icon: "📦" },
 ];
-
-const STATUS_LABELS = {
-  total: "总分镜",
-  pending: "待生成",
-  imageDone: "已生成图",
-  videoDone: "已生成视频",
-  redo: "需重做",
-  approved: "已通过",
-};
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -78,23 +69,18 @@ export default function ProjectDetailPage() {
         redoShots: shots.filter((s) => s.status === "需重做").length,
         approvedShots: shots.filter((s) => s.status === "已通过").length,
       });
-    } catch {
-      // silently fail
-    }
+    } catch { /* silently fail */ }
   }, [projectId]);
 
-  useEffect(() => {
-    loadProject();
-    loadStats();
-  }, [loadProject, loadStats]);
+  useEffect(() => { loadProject(); loadStats(); }, [loadProject, loadStats]);
 
   const completionPct = stats.shots > 0 ? Math.round((stats.approvedShots / stats.shots) * 100) : 0;
 
   function stepStatus(key) {
     if (key === "plan") return stats.hasPlan ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "characters") return stats.characters > 0 ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "scenes") return stats.scenes > 0 ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "storyboard" || key === "editor") return stats.shots > 0 ? "done" : activeTab === key ? "active" : "pending";
+    if (key === "subjects") return stats.characters > 0 || stats.scenes > 0 ? "done" : activeTab === key ? "active" : "pending";
+    if (key === "storyboard" || key === "editor" || key === "generate")
+      return stats.shots > 0 ? "done" : activeTab === key ? "active" : "pending";
     if (key === "export") return stats.shots > 0 ? "done" : activeTab === key ? "active" : "pending";
     return "pending";
   }
@@ -125,7 +111,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b shrink-0 px-6 py-4">
         <button onClick={() => router.push("/")}
@@ -134,50 +120,51 @@ export default function ProjectDetailPage() {
         </button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{project.title}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{project?.title}</h1>
             <div className="flex gap-2 mt-1 flex-wrap">
-              {project.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{project.type}</span>}
-              {project.platform && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{project.platform}</span>}
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{project.status}</span>
+              {project?.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{project.type}</span>}
+              {project?.platform && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{project.platform}</span>}
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{project?.status}</span>
             </div>
           </div>
-          {/* Completion ring */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-xs text-gray-400">完成度</div>
-              <div className="text-2xl font-bold text-blue-600">{completionPct}%</div>
+          {stats.shots > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-xs text-gray-400">完成度</div>
+                <div className="text-2xl font-bold text-blue-600">{completionPct}%</div>
+              </div>
+              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#2563eb" strokeWidth="3"
+                  strokeDasharray={`${Math.min(completionPct * 0.97, 97)} 100`} strokeLinecap="round" />
+              </svg>
             </div>
-            <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#2563eb" strokeWidth="3"
-                strokeDasharray={`${completionPct * 0.97} 100`} strokeLinecap="round" />
-            </svg>
-          </div>
+          )}
         </div>
 
-        {/* Production Dashboard */}
+        {/* Stats dashboard */}
         {stats.shots > 0 && (
-          <div className="mt-4 grid grid-cols-3 md:grid-cols-6 gap-3">
-            <DashCard label="角色" value={stats.characters} color="blue" />
-            <DashCard label="场景" value={stats.scenes} color="green" />
-            <DashCard label="分镜" value={stats.shots} color="purple" />
-            <DashCard label="待生成" value={stats.pendingShots} color="gray" />
-            <DashCard label="已生成图" value={stats.imageDoneShots} color="blue" />
-            <DashCard label="已生成视频" value={stats.videoDoneShots} color="purple" />
-            <DashCard label="需重做" value={stats.redoShots} color="red" />
-            <DashCard label="已通过" value={stats.approvedShots} color="green" />
+          <div className="mt-4 grid grid-cols-4 md:grid-cols-8 gap-2">
+            <MiniStat label="角色" value={stats.characters} />
+            <MiniStat label="场景" value={stats.scenes} />
+            <MiniStat label="分镜" value={stats.shots} />
+            <MiniStat label="待生成" value={stats.pendingShots} color="text-gray-500" />
+            <MiniStat label="已生图" value={stats.imageDoneShots} color="text-blue-600" />
+            <MiniStat label="已生视频" value={stats.videoDoneShots} color="text-purple-600" />
+            <MiniStat label="需重做" value={stats.redoShots} color="text-red-600" />
+            <MiniStat label="已通过" value={stats.approvedShots} color="text-green-600" />
           </div>
         )}
       </div>
 
       {/* Step tabs */}
       <div className="bg-white border-b shrink-0 px-6">
-        <div className="flex gap-0">
+        <div className="flex gap-0 overflow-x-auto">
           {STEPS.map((step, i) => {
             const status = stepStatus(step.key);
             return (
               <button key={step.key} onClick={() => setActiveTab(step.key)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-all shrink-0 ${
                   activeTab === step.key
                     ? "border-blue-600 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -197,31 +184,29 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-auto p-6">
-        {activeTab === "plan" && <PlanPanel projectId={params.id} />}
-        {activeTab === "characters" && <CharacterPanel projectId={params.id} />}
-        {activeTab === "scenes" && <ScenePanel projectId={params.id} />}
-        {activeTab === "storyboard" && <ShotPanel projectId={params.id} />}
-        {activeTab === "editor" && <ShotEditorPanel projectId={params.id} />}
-        {activeTab === "export" && <ExportPanel project={project} projectId={params.id} />}
+      <div className="flex-1 overflow-auto">
+        {activeTab === "plan" && <PlanPanel projectId={projectId} onStatsChange={loadStats} />}
+        {activeTab === "subjects" && (
+          <div className="p-6 space-y-8">
+            <CharacterPanel projectId={projectId} />
+            <hr className="border-gray-200" />
+            <ScenePanel projectId={projectId} />
+          </div>
+        )}
+        {activeTab === "storyboard" && <ShotPanel projectId={projectId} />}
+        {activeTab === "editor" && <ShotEditorPanel projectId={projectId} />}
+        {activeTab === "generate" && <ShotEditorPanel projectId={projectId} />}
+        {activeTab === "export" && <ExportPanel project={project} projectId={projectId} />}
       </div>
     </div>
   );
 }
 
-function DashCard({ label, value, color }) {
-  const colors = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    green: "bg-green-50 text-green-700 border-green-200",
-    purple: "bg-purple-50 text-purple-700 border-purple-200",
-    gray: "bg-gray-50 text-gray-700 border-gray-200",
-    red: "bg-red-50 text-red-700 border-red-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-  };
+function MiniStat({ label, value, color }) {
   return (
-    <div className={`border rounded-lg px-3 py-2 text-center ${colors[color] || colors.gray}`}>
-      <div className="text-lg font-bold">{value}</div>
-      <div className="text-xs opacity-75">{label}</div>
+    <div className="text-center px-2 py-1.5 bg-white border rounded-lg">
+      <div className={`text-sm font-bold ${color || "text-gray-900"}`}>{value}</div>
+      <div className="text-[10px] text-gray-400">{label}</div>
     </div>
   );
 }

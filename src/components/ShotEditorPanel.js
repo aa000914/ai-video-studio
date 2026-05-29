@@ -11,8 +11,18 @@ const STATUS_COLORS = {
   "已通过": "bg-green-100 text-green-700",
 };
 
-const IMAGE_MODELS = ["文生图模型", "参考生图模型", "一致性短剧模型"];
-const VIDEO_MODELS = ["Seedance", "可灵", "海螺", "Vidu", "Pixverse"];
+const IMAGE_MODELS = ["qwen-image-2.0-pro", "qwen-image-2.0"];
+const IMAGE_MODEL_HINTS = {
+  "qwen-image-2.0-pro": "文生图适合视觉类短片，风格更灵活。",
+  "qwen-image-2.0": "参考生图适合剧情类剧集，角色和场景一致性更好。",
+};
+const VIDEO_MODELS = ["wan2.7-i2v", "wan2.7-t2v", "wan2.7-videoedit", "happyhorse"];
+const VIDEO_MODEL_LABELS = {
+  "wan2.7-i2v": "图生视频",
+  "wan2.7-t2v": "文生视频",
+  "wan2.7-videoedit": "视频编辑 (WAN)",
+  "happyhorse": "HappyHorse",
+};
 const RESOLUTIONS = ["720P", "1080P"];
 const VIDEO_DURATIONS = ["5s", "10s"];
 
@@ -31,13 +41,19 @@ export default function ShotEditorPanel({ projectId }) {
   const [resolution, setResolution] = useState("720P");
   const [videoDuration, setVideoDuration] = useState("5s");
 
-  // Free demo image generation (Pollinations)
+  // DashScope text-to-image
   const [aspectRatio, setAspectRatio] = useState("16:9");
-  const [generatingImg, setGeneratingImg] = useState(false);
-  const [generatedImgUrl, setGeneratedImgUrl] = useState("");
-  const [imgLoadError, setImgLoadError] = useState(false);
-  const [imgFallback, setImgFallback] = useState(0); // 0=new API, 1=old API, 2=both failed
-  const [genSeed, setGenSeed] = useState(null);
+  const [imageTaskId, setImageTaskId] = useState("");
+  const [imageTaskStatus, setImageTaskStatus] = useState("idle"); // idle | submitting | running | succeeded | failed
+  const [resultImageUrl, setResultImageUrl] = useState("");
+  const [imageError, setImageError] = useState("");
+
+  // DashScope video generation
+  const [videoTaskStatus, setVideoTaskStatus] = useState("idle"); // idle | submitting | running | succeeded | failed
+  const [resultVideoUrl, setResultVideoUrl] = useState("");
+  const [videoError, setVideoError] = useState("");
+  const [videoModelName, setVideoModelName] = useState("wan2.7-t2v");
+  const [selectedVideoMode, setSelectedVideoMode] = useState("t2v"); // t2v | i2v
 
   const selected = shots[selectedIdx];
   const totalShots = shots.length;
@@ -60,10 +76,15 @@ export default function ShotEditorPanel({ projectId }) {
 
   useEffect(() => { loadShots(); loadPlanAspect(); }, [projectId]);
 
-  // Reset image when switching shots
+  // Reset generation state when switching shots
   useEffect(() => {
-    setGeneratedImgUrl("");
-    setImgLoadError(false);
+    setResultImageUrl("");
+    setImageTaskStatus("idle");
+    setImageTaskId("");
+    setImageError("");
+    setResultVideoUrl("");
+    setVideoTaskStatus("idle");
+    setVideoError("");
   }, [selectedIdx]);
 
   async function loadPlanAspect() {
@@ -174,48 +195,176 @@ export default function ShotEditorPanel({ projectId }) {
       setTimeout(() => setMessage(""), 2000);
       return;
     }
-    setGeneratingImg(true);
-    setGeneratedImgUrl("");
-    setImgLoadError(false);
-    setImgFallback(0);
+
+    setImageTaskStatus("submitting");
+    setResultImageUrl("");
+    setImageError("");
     setMessage("");
 
-    const shortPrompt = truncatePrompt(promptText.trim(), 600);
-    const encoded = encodeURIComponent(shortPrompt);
-    const { width, height } = dims;
-    const seed = Date.now();
-    setGenSeed(seed);
-    const params = `width=${width}&height=${height}&seed=${seed}`;
-    const url = `https://gen.pollinations.ai/image/${encoded}?${params}`;
-    setGeneratedImgUrl(url);
-    setGeneratingImg(false);
-  }
+    try {
+      // Submit task
+      const submitRes = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: truncatePrompt(promptText.trim(), 600),
+          size: `${dims.width}*${dims.height}`,
+        }),
+      });
+      const submitData = await submitRes.json();
+      if (!submitRes.ok) throw new Error(submitData.error || "提交失败");
 
-  function handleImgError() {
-    if (imgFallback === 0) {
-      // New API failed, try old API
-      setImgFallback(1);
-      const promptText = (selected?.refined_image_prompt || selected?.image_prompt || "").trim();
-      const shortPrompt = truncatePrompt(promptText, 600);
-      const encoded = encodeURIComponent(shortPrompt);
-      const { width, height } = dims;
-      const params = `width=${width}&height=${height}&seed=${genSeed || Date.now()}`;
-      const url = `https://image.pollinations.ai/prompt/${encoded}?${params}`;
-      setGeneratedImgUrl(url);
-    } else {
-      // Both failed
-      setImgFallback(2);
-      setImgLoadError(true);
-      setGeneratedImgUrl("");
+      // Case 1: Sync mode — results returned directly
+      if (submitData.status === "SUCCEEDED" && submitData.results?.length > 0) {
+        const url = submitData.results[0].url;
+        if (url) {
+          setResultImageUrl(url);
+          setImageTaskStatus("succeeded");
+          return;
+        }
+      }
+
+      // Case 2: Async mode — poll for results
+      const taskId = submitData.task_id;
+      if (!taskId) throw new Error("未返回任务 ID");
+      setImageTaskId(taskId);
+      setImageTaskStatus("running");
+
+      const maxAttempts = 30; // ~60 seconds timeout
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+
+        const pollRes = await fetch(`/api/media-task?task_id=${encodeURIComponent(taskId)}`);
+        const pollData = await pollRes.json();
+
+        if (!pollRes.ok) throw new Error(pollData.error || "查询失败");
+
+        if (pollData.status === "SUCCEEDED") {
+          const url = pollData.results?.[0]?.url;
+          if (url) {
+            setResultImageUrl(url);
+            setImageTaskStatus("succeeded");
+          } else {
+            throw new Error("生成成功但未返回图片 URL");
+          }
+          return;
+        }
+
+        if (pollData.status === "FAILED") {
+          throw new Error(pollData.error || "生成失败");
+        }
+      }
+
+      throw new Error("生成超时，请稍后重试");
+    } catch (err) {
+      const msg = err.message;
+      if (msg.includes("403") || msg.includes("AccessDenied") || msg.includes("免费额度")) {
+        setImageError("免费额度已用完或免费额度用完即停已触发。");
+        setMessage("生图失败: 免费额度已用完");
+      } else {
+        setImageError(msg);
+        setMessage("生图失败: " + msg);
+      }
+      setImageTaskStatus("failed");
     }
   }
 
-  function handleRegenerateImage() {
-    setImgLoadError(false);
-    setImgFallback(0);
-    setGenSeed(null);
-    setGeneratedImgUrl("");
-    handleGenerateImage();
+  function handleRetryImage() {
+    setImageTaskStatus("idle");
+    setResultImageUrl("");
+    setImageTaskId("");
+    setImageError("");
+    setMessage("");
+    setTimeout(() => handleGenerateImage(), 300);
+  }
+
+  async function handleGenerateVideo(mode) {
+    if (!selected) return;
+    setSelectedVideoMode(mode);
+    setResultVideoUrl("");
+    setVideoError("");
+    setVideoTaskStatus("submitting");
+    setMessage("");
+
+    const promptText = selected.refined_video_prompt || selected.video_prompt;
+    if (!promptText?.trim() && mode === "t2v") {
+      setMessage("请先填写视频提示词");
+      setVideoTaskStatus("idle");
+      return;
+    }
+
+    try {
+      const body = { type: mode };
+      if (mode === "t2v") {
+        body.prompt = promptText.trim();
+      } else if (mode === "i2v") {
+        const imageUrl = resultImageUrl || selected.image_url;
+        if (!imageUrl) {
+          setMessage("请先生成分镜图");
+          setVideoTaskStatus("idle");
+          return;
+        }
+        body.image_url = imageUrl;
+        body.prompt = promptText?.trim() || "Generate video from this image";
+        if (promptText?.trim()) body.prompt = promptText.trim();
+      }
+
+      const res = await fetch("/api/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "提交失败");
+
+      const taskId = data.task_id;
+      if (!taskId) throw new Error("未返回任务 ID");
+
+      setVideoTaskStatus("running");
+
+      // Poll for result
+      const maxAttempts = 60;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+
+        const pollRes = await fetch(`/api/media-task?task_id=${encodeURIComponent(taskId)}`);
+        const pollData = await pollRes.json();
+        if (!pollRes.ok) throw new Error(pollData.error || "查询失败");
+
+        if (pollData.status === "SUCCEEDED") {
+          const url = pollData.results?.[0]?.url;
+          if (url) {
+            setResultVideoUrl(url);
+            setVideoTaskStatus("succeeded");
+            setMessage("视频生成成功");
+          } else {
+            throw new Error("生成成功但未返回视频 URL");
+          }
+          return;
+        }
+
+        if (pollData.status === "FAILED") {
+          throw new Error(pollData.error || "视频生成失败");
+        }
+      }
+      throw new Error("视频生成超时，请稍后重试");
+    } catch (err) {
+      const msg = err.message;
+      if (msg.includes("403") || msg.includes("AccessDenied")) {
+        setVideoError("免费额度已用完或免费额度用完即停已触发。");
+      } else {
+        setVideoError(msg);
+      }
+      setVideoTaskStatus("failed");
+      setMessage("视频生成失败: " + (msg.includes("403") ? "免费额度已用完" : msg));
+    }
+  }
+
+  function handleRetryVideo() {
+    setVideoTaskStatus("idle");
+    setResultVideoUrl("");
+    setVideoError("");
+    setTimeout(() => handleGenerateVideo(selectedVideoMode), 300);
   }
 
   async function copyText(text, field) {
@@ -277,30 +426,33 @@ export default function ShotEditorPanel({ projectId }) {
                 </span>
               </div>
 
-              {/* Image preview area */}
-              {generatingImg ? (
+              {/* Image preview area — DashScope */}
+              {imageTaskStatus === "submitting" ? (
                 <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-blue-50/50 min-h-[180px] flex flex-col items-center justify-center">
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
-                  <p className="text-sm text-blue-600 font-medium">正在生成分镜图...</p>
-                  <p className="text-xs text-blue-400 mt-1">
-                    {imgFallback === 0 ? "调用 Pollinations gen API" : "fallback 到旧接口重试"}
+                  <p className="text-sm text-blue-600 font-medium">正在提交生图任务...</p>
+                </div>
+              ) : imageTaskStatus === "running" ? (
+                <div className="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center bg-purple-50/50 min-h-[180px] flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-purple-600 font-medium">AI 正在生成中...</p>
+                  <p className="text-xs text-purple-400 mt-1">
+                    模型：{process.env.NEXT_PUBLIC_IMAGE_MODEL || "qwen-image-2.0-pro"} | 任务：{imageTaskId?.slice(0, 12)}...
                   </p>
                 </div>
-              ) : generatedImgUrl && !imgLoadError ? (
+              ) : imageTaskStatus === "succeeded" && resultImageUrl ? (
                 <div className="rounded-xl overflow-hidden bg-gray-100 min-h-[180px] flex flex-col items-center justify-center relative">
                   <img
-                    src={generatedImgUrl}
+                    src={resultImageUrl}
                     alt={`Shot ${selected.shot_number} preview`}
                     className="max-w-full max-h-[400px] object-contain"
-                    onError={handleImgError}
-                    onLoad={() => setImgLoadError(false)}
                   />
                   <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
-                    <a href={generatedImgUrl} target="_blank" rel="noopener noreferrer"
+                    <a href={resultImageUrl} target="_blank" rel="noopener noreferrer"
                       className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       打开原图
                     </a>
-                    <button onClick={() => { navigator.clipboard.writeText(generatedImgUrl); setMessage("图片链接已复制"); setTimeout(() => setMessage(""), 2000); }}
+                    <button onClick={() => { navigator.clipboard.writeText(resultImageUrl); setMessage("图片链接已复制"); setTimeout(() => setMessage(""), 2000); }}
                       className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       复制图片链接
                     </button>
@@ -308,47 +460,81 @@ export default function ShotEditorPanel({ projectId }) {
                       className="bg-white/90 text-blue-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       {copiedField === "previewImage" ? "已复制" : "复制图片提示词"}
                     </button>
-                    <button onClick={handleRegenerateImage}
-                      className="bg-white/90 text-amber-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                    <button onClick={handleGenerateImage}
+                      className="bg-white/90 text-green-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
                       重新生成
                     </button>
                   </div>
-                  <div className="absolute bottom-2 left-2 bg-white/80 text-amber-600 px-2 py-0.5 rounded text-xs">
-                    免费演示生图，质量和稳定性仅供测试
+                  <div className="absolute bottom-2 left-2 bg-white/80 text-green-700 px-2 py-0.5 rounded text-xs">
+                    阿里云百炼 · qwen-image-2.0-pro
                   </div>
                 </div>
-              ) : imgLoadError && imgFallback >= 2 ? (
+              ) : imageTaskStatus === "failed" ? (
                 <div className="border-2 border-dashed border-red-300 rounded-xl p-6 text-center bg-red-50 min-h-[180px] flex flex-col items-center justify-center">
                   <div className="text-red-400 text-3xl mb-2">⚠️</div>
                   <h4 className="text-sm font-medium text-red-500 mb-1">生成失败</h4>
-                  <p className="text-xs text-red-400 mb-3">两种接口均不可用，请尝试以下操作：</p>
+                  <p className="text-xs text-red-400 mb-3">{imageError || "请重试"}</p>
                   <div className="flex flex-wrap gap-2 justify-center mb-3">
                     <button onClick={() => copyText(selected.refined_image_prompt || selected.image_prompt, "errorCopyPrompt")}
                       className="border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg text-xs hover:bg-blue-50 bg-white">
                       {copiedField === "errorCopyPrompt" ? "已复制提示词" : "复制图片提示词"}
                     </button>
-                    <button onClick={handleRegenerateImage}
+                    <button onClick={handleRetryImage}
                       className="border border-amber-300 text-amber-600 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-50 bg-white">
                       重新生成
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    可将提示词复制到即梦、豆包、可灵、Midjourney、Stable Diffusion 等工具生图
-                  </p>
-                </div>
-              ) : imgFallback === 1 ? (
-                <div className="border-2 border-dashed border-amber-300 rounded-xl p-8 text-center bg-amber-50 min-h-[180px] flex flex-col items-center justify-center">
-                  <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3" />
-                  <p className="text-sm text-amber-600 font-medium">新接口失败，正在尝试旧接口...</p>
-                  <p className="text-xs text-amber-400 mt-1">请稍候</p>
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 min-h-[180px] flex flex-col items-center justify-center">
                   <div className="text-gray-300 text-4xl mb-3">🖼️</div>
                   <h4 className="text-sm font-medium text-gray-400 mb-1">分镜图预览区</h4>
-                  <p className="text-xs text-gray-300">点击右侧"生成分镜图预览"使用免费演示生图</p>
+                  <p className="text-xs text-gray-300">点击右侧"生成分镜图预览"使用阿里云百炼生图</p>
                 </div>
               )}
+
+              {/* Video preview */}
+              {videoTaskStatus === "submitting" ? (
+                <div className="border-2 border-dashed border-pink-300 rounded-xl p-8 text-center bg-pink-50/50 min-h-[120px] flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-pink-600 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-pink-600 font-medium">正在提交视频任务...</p>
+                </div>
+              ) : videoTaskStatus === "running" ? (
+                <div className="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center bg-purple-50/50 min-h-[120px] flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-purple-600 font-medium">AI 正在生成视频...</p>
+                  <p className="text-xs text-purple-400 mt-1">模型：{selectedVideoMode === "t2v" ? "wan2.7-t2v" : "wan2.7-i2v"} | 轮询中</p>
+                </div>
+              ) : videoTaskStatus === "succeeded" && resultVideoUrl ? (
+                <div className="rounded-xl overflow-hidden bg-black min-h-[200px] flex flex-col items-center justify-center relative">
+                  <video src={resultVideoUrl} controls className="max-w-full max-h-[400px]" />
+                  <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
+                    <a href={resultVideoUrl} target="_blank" rel="noopener noreferrer"
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                      打开原视频
+                    </a>
+                    <button onClick={() => { navigator.clipboard.writeText(resultVideoUrl); setMessage("视频链接已复制"); setTimeout(() => setMessage(""), 2000); }}
+                      className="bg-white/90 text-gray-700 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                      复制视频链接
+                    </button>
+                    <button onClick={handleRetryVideo}
+                      className="bg-white/90 text-green-600 px-2.5 py-1 rounded text-xs hover:bg-white shadow-sm border">
+                      重新生成
+                    </button>
+                  </div>
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded text-xs">
+                    阿里云百炼 · {selectedVideoMode === "t2v" ? "wan2.7-t2v" : "wan2.7-i2v"}
+                  </div>
+                </div>
+              ) : videoTaskStatus === "failed" ? (
+                <div className="border-2 border-dashed border-red-300 rounded-xl p-6 text-center bg-red-50 min-h-[120px] flex flex-col items-center justify-center">
+                  <span className="text-red-400 text-lg">⚠️ 视频生成失败</span>
+                  <p className="text-xs text-red-400 mt-1">{videoError || "请重试"}</p>
+                  <button onClick={handleRetryVideo} className="mt-2 border border-amber-300 text-amber-600 px-3 py-1 rounded-lg text-xs hover:bg-amber-50">
+                    重新生成
+                  </button>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="场景" value={selected.scene_name} />
@@ -421,22 +607,21 @@ export default function ShotEditorPanel({ projectId }) {
                   {polishing ? "AI润色中..." : "AI 润色图片提示词"}
                 </button>
 
-                {/* Free demo image generation */}
+                {/* DashScope text-to-image */}
                 <div className="border-t pt-3 mt-3">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2">
-                    <p className="text-xs text-amber-600 leading-relaxed">
-                      免费演示生图，质量和稳定性仅供测试。
-                    </p>
-                  </div>
                   <button
                     onClick={handleGenerateImage}
-                    disabled={generatingImg}
-                    className="w-full bg-amber-500 text-white py-1.5 rounded text-xs font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                    disabled={imageTaskStatus === "submitting" || imageTaskStatus === "running"}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all shadow-sm"
                   >
-                    {generatingImg ? "生成中..." : "🖼 生成分镜图预览"}
+                    {imageTaskStatus === "submitting"
+                      ? "提交中..."
+                      : imageTaskStatus === "running"
+                      ? "生成中..."
+                      : "🎨 生成分镜图 · qwen-image-2.0-pro"}
                   </button>
                   <p className="text-xs text-gray-400 mt-1 text-center">
-                    由 Pollinations AI 免费提供
+                    阿里云百炼 · 异步生图
                   </p>
                 </div>
               </div>
@@ -457,9 +642,32 @@ export default function ShotEditorPanel({ projectId }) {
                   className="mt-1.5 w-full border border-purple-200 text-purple-600 py-1.5 rounded text-xs hover:bg-purple-50 disabled:opacity-50">
                   {polishing ? "AI润色中..." : "AI 润色视频提示词"}
                 </button>
-                <p className="text-xs text-gray-400 mt-2 text-center">
-                  待接入视频模型（Seedance / 可灵 / Kling）
-                </p>
+                {/* Video generation buttons */}
+                <div className="border-t pt-3 mt-3 space-y-2">
+                  <button
+                    onClick={() => handleGenerateVideo("t2v")}
+                    disabled={videoTaskStatus === "submitting" || videoTaskStatus === "running"}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 rounded text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all shadow-sm"
+                  >
+                    {videoTaskStatus === "submitting"
+                      ? "提交中..."
+                      : videoTaskStatus === "running"
+                      ? "视频生成中..."
+                      : "🎬 文生视频 · wan2.7-t2v"}
+                  </button>
+                  <button
+                    onClick={() => handleGenerateVideo("i2v")}
+                    disabled={videoTaskStatus === "submitting" || videoTaskStatus === "running"}
+                    className="w-full border border-purple-300 text-purple-700 py-2 rounded text-xs font-medium hover:bg-purple-50 disabled:opacity-50 transition-all"
+                  >
+                    {videoTaskStatus === "running"
+                      ? "生成中..."
+                      : "🔄 图转视频 · wan2.7-i2v"}
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">
+                    阿里云百炼 · 异步生成
+                  </p>
+                </div>
               </div>
 
               {/* Refined prompts */}
@@ -518,27 +726,27 @@ export default function ShotEditorPanel({ projectId }) {
         </div>
       </div>
 
-      {/* Bottom: Credit & Model Estimation */}
+      {/* Bottom: Model Config */}
       <div className="bg-white border rounded-xl p-5 mt-3">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">生成配置 / 积分估算</h3>
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">生成配置</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Image model */}
           <div>
             <label className="text-xs text-gray-500 mb-1 block">生图模型</label>
             <select value={imageModel} onChange={(e) => setImageModel(e.target.value)}
               className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
               {IMAGE_MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
             </select>
+            <p className="text-[10px] text-gray-400 mt-1">{IMAGE_MODEL_HINTS[imageModel] || ""}</p>
           </div>
-          {/* Video model */}
           <div>
             <label className="text-xs text-gray-500 mb-1 block">视频模型</label>
             <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)}
               className="w-full border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
-              {VIDEO_MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
+              {VIDEO_MODELS.map((m) => (
+                <option key={m} value={m}>{VIDEO_MODEL_LABELS[m] || m}</option>
+              ))}
             </select>
           </div>
-          {/* Resolution */}
           <div>
             <label className="text-xs text-gray-500 mb-1 block">分辨率</label>
             <select value={resolution} onChange={(e) => setResolution(e.target.value)}
@@ -546,7 +754,6 @@ export default function ShotEditorPanel({ projectId }) {
               {RESOLUTIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
             </select>
           </div>
-          {/* Duration */}
           <div>
             <label className="text-xs text-gray-500 mb-1 block">单镜头视频时长</label>
             <select value={videoDuration} onChange={(e) => setVideoDuration(e.target.value)}
@@ -556,27 +763,12 @@ export default function ShotEditorPanel({ projectId }) {
           </div>
         </div>
 
-        {/* Credit summary */}
-        <div className="mt-5 grid grid-cols-3 gap-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
-            <div className="text-xs text-blue-500 mb-1">分镜图积分</div>
-            <div className="text-2xl font-bold text-blue-700">{imageCredits}</div>
-            <div className="text-xs text-blue-400 mt-0.5">{totalShots} 张 × 2 积分</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-center">
-            <div className="text-xs text-purple-500 mb-1">视频积分</div>
-            <div className="text-2xl font-bold text-purple-700">{videoCredits}</div>
-            <div className="text-xs text-purple-400 mt-0.5">{totalShots} 条 × {videoRate} × {durationMultiplier}</div>
-          </div>
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
-            <div className="text-xs text-amber-500 mb-1">总预计积分</div>
-            <div className="text-2xl font-bold text-amber-700">{totalCredits}</div>
-            <div className="text-xs text-amber-400 mt-0.5">演示估算</div>
-          </div>
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-xs text-amber-700">
+            <strong>⚠️ 当前使用百炼免费额度</strong>，免费额度用完会返回 403，不会继续生成。
+            如需继续使用，请在阿里云百炼控制台关闭"仅使用免费额度"模式。
+          </p>
         </div>
-        <p className="text-xs text-gray-400 mt-3 text-center">
-          * 以上为演示估算（每张图2积分，720P/5s=10积分，1080P/5s=20积分），不接真实计费
-        </p>
       </div>
     </div>
   );

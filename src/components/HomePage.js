@@ -25,10 +25,11 @@ import {
 } from "lucide-react";
 import CreateProjectModal from "@/components/CreateProjectModal";
 
-const CONTENT_TYPES = ["短剧", "音乐MV", "知识分享", "历史文化"];
-const MODES = ["AI 策划", "对话剧情", "旁白解说"];
-const ASPECT_RATIOS = ["16:9", "9:16", "3:4", "4:3"];
+const CONTENT_TYPES = ["短剧漫剧", "音乐MV", "知识分享", "历史文化"];
+const MODES = ["对话剧情", "旁白解说"];
+const ASPECT_RATIOS = ["9:16", "16:9", "3:4", "4:3"];
 const ART_STYLES = ["电影质感", "写实", "国漫", "二次元", "赛博朋克"];
+const IMAGE_MODEL_OPTIONS = ["文生图模型", "参考生图模型"];
 
 const PLACEHOLDER =
   "例如：一个发生在未来海上城市的科幻故事，主角是一名记忆修复师，风格偏赛博朋克……";
@@ -161,6 +162,13 @@ const CONFIG_ITEMS = [
     label: "画风",
     icon: Palette,
     options: ART_STYLES,
+    displayMap: (v) => v,
+  },
+  {
+    key: "imageModel",
+    label: "生图模型",
+    icon: Sparkles,
+    options: IMAGE_MODEL_OPTIONS,
     displayMap: (v) => v,
   },
 ];
@@ -305,6 +313,7 @@ export default function HomePageClient({
   const [storyboardCount, setStoryboardCount] = useState(12);
   const [episodeCount, setEpisodeCount] = useState(1);
   const [artStyle, setArtStyle] = useState("电影质感");
+  const [imageModel, setImageModel] = useState("文生图模型");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError || "");
   const [projects, setProjects] = useState(initialProjects);
@@ -324,6 +333,7 @@ export default function HomePageClient({
       storyboardCount,
       episodeCount,
       artStyle,
+      imageModel,
     };
     return map[key];
   }
@@ -336,6 +346,7 @@ export default function HomePageClient({
       storyboardCount: setStoryboardCount,
       episodeCount: setEpisodeCount,
       artStyle: setArtStyle,
+      imageModel: setImageModel,
     };
     setters[key](val);
   }
@@ -441,7 +452,7 @@ export default function HomePageClient({
   const demoTabActive = activeTab === "inspiration";
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-y-auto" style={{ background: "#f6f7fb" }}>
       {/* ============================================ */}
       {/* HERO SECTION                                 */}
       {/* ============================================ */}
@@ -453,7 +464,7 @@ export default function HomePageClient({
             "radial-gradient(ellipse 60% 40% at 20% 60%, rgba(139,92,246,0.12), transparent), " +
             "radial-gradient(ellipse 60% 40% at 80% 40%, rgba(59,130,246,0.12), transparent), " +
             "linear-gradient(180deg, #0a0f2c 0%, #0d1137 40%, #111840 100%)",
-          minHeight: "540px",
+          minHeight: "520px",
         }}
       >
         {/* Tech light beams */}
@@ -626,6 +637,13 @@ export default function HomePageClient({
                   }
                 />
               ))}
+            </div>
+
+            {/* Model info text */}
+            <div className="mt-3 text-xs" style={{ color: "rgba(148,163,184,0.7)" }}>
+              {imageModel === "参考生图模型"
+                ? "💡 参考生图适合剧情类剧集，角色和场景一致性更好。"
+                : "💡 文生图适合视觉类短片，风格更灵活。"}
             </div>
 
             {/* Action buttons */}
@@ -809,7 +827,7 @@ export default function HomePageClient({
       {/* ============================================ */}
       {/* LIGHT CONTENT AREA                           */}
       {/* ============================================ */}
-      <div style={{ background: "#f1f2f7" }}>
+      <div>
         <div
           className="mx-auto"
           style={{
@@ -820,7 +838,7 @@ export default function HomePageClient({
           {/* ===== Capability Cards ===== */}
           <div
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            style={{ marginTop: "-40px" }}
+            style={{ marginTop: "-48px", position: "relative", zIndex: 20 }}
           >
             {FLOW_CARDS.map((card) => {
               const Icon = card.icon;
