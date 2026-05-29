@@ -55,31 +55,31 @@ const DEMO_PROJECTS = [
   {
     title: "秦朝穿越短剧",
     tags: "短剧 · 历史",
-    description:
-      "现代青年穿越秦朝，卷入扶苏寻师与朝堂权谋。",
+    description: "现代青年穿越秦朝，卷入谋与天下之争",
     rating: "9.4",
     coverGradient:
       "linear-gradient(135deg, #3b1d0f, #b45309, #111827)",
+    coverAccent: "linear-gradient(135deg, #92400e, #d97706)",
     action: "inspire",
   },
   {
     title: "末日穹顶城市",
     tags: "短剧 · 科幻",
-    description:
-      "人类最后的庇护所，穹顶之下的生存博弈。",
+    description: "人类最后的庇护所，穹顶之下的生存博弈",
     rating: "9.2",
     coverGradient:
       "linear-gradient(135deg, #0f172a, #1e3a8a, #94a3b8)",
+    coverAccent: "linear-gradient(135deg, #1e3a8a, #3b82f6)",
     action: "demo",
   },
   {
     title: "文博青花瓷复原",
     tags: "纪录片 · 文博",
-    description:
-      "AI 助力文物数字复原，重现千年工艺之美。",
+    description: "AI 助力文物数字复原，重现千年工艺之美",
     rating: "9.6",
     coverGradient:
       "linear-gradient(135deg, #eff6ff, #1d4ed8, #0f172a)",
+    coverAccent: "linear-gradient(135deg, #1d4ed8, #6366f1)",
     action: "demo",
   },
 ];
@@ -88,30 +88,34 @@ const FLOW_CARDS = [
   {
     icon: Lightbulb,
     title: "灵感策划",
-    desc: "从灵感到完整策划案，AI 帮你梳理故事脉络",
+    desc: "从灵感到完整策划案\nAI 帮你梳理故事脉络",
     color: "from-purple-400 to-violet-600",
-    bg: "rgba(139,92,246,0.10)",
+    bg: "rgba(139,92,246,0.08)",
+    border: "rgba(139,92,246,0.15)",
   },
   {
     icon: Shapes,
     title: "主体一致性",
-    desc: "多模态角色建模，保持角色形象统一",
+    desc: "多模态角色建模\n保持角色形象统一",
     color: "from-blue-400 to-indigo-600",
-    bg: "rgba(59,130,246,0.10)",
+    bg: "rgba(59,130,246,0.08)",
+    border: "rgba(59,130,246,0.15)",
   },
   {
     icon: Film,
     title: "分镜执行",
-    desc: "AI 生成分镜画面，镜头语言精准落地",
+    desc: "AI 生成分镜画面\n镜头语言精准落地",
     color: "from-emerald-400 to-teal-600",
-    bg: "rgba(16,185,129,0.10)",
+    bg: "rgba(16,185,129,0.08)",
+    border: "rgba(16,185,129,0.15)",
   },
   {
     icon: Package,
     title: "交付导出",
-    desc: "一键导出多种格式，满足团队制作需求",
+    desc: "一键导出多种格式\n满足平台发布需求",
     color: "from-orange-400 to-amber-600",
-    bg: "rgba(251,146,60,0.10)",
+    bg: "rgba(251,146,60,0.08)",
+    border: "rgba(251,146,60,0.15)",
   },
 ];
 
@@ -194,27 +198,35 @@ function ConfigDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2.5 w-full text-left transition-all"
+        className="flex items-center gap-3 w-full text-left transition-all hover:bg-white/[0.06]"
         style={{
-          minWidth: "150px",
-          height: "60px",
-          padding: "12px 18px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.68)",
-          border: "1px solid rgba(255,255,255,0.10)",
+          minWidth: "138px",
+          height: "52px",
+          padding: "10px 16px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.70)",
+          border: open
+            ? "1px solid rgba(139,92,246,0.5)"
+            : "1px solid rgba(255,255,255,0.08)",
+          boxShadow: open
+            ? "0 0 0 1px rgba(139,92,246,0.3), 0 4px 12px rgba(0,0,0,0.2)"
+            : "none",
         }}
       >
-        <Icon size={16} className="text-gray-400 shrink-0" />
+        <Icon
+          size={14}
+          className="text-gray-500 shrink-0"
+        />
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] text-gray-500 leading-tight">
+          <div className="text-[10px] text-gray-500 leading-none mb-0.5">
             {label}
           </div>
-          <div className="text-sm text-white truncate font-medium">
+          <div className="text-[13px] text-white truncate font-medium leading-tight">
             {displayMap ? displayMap(value) : value}
           </div>
         </div>
         <ChevronDown
-          size={14}
+          size={13}
           className={`text-gray-500 shrink-0 transition-transform ${
             open ? "rotate-180" : ""
           }`}
@@ -228,9 +240,9 @@ function ConfigDropdown({
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute top-full left-0 mt-1.5 w-full z-20 rounded-2xl overflow-hidden shadow-2xl"
+            className="absolute top-full left-0 mt-1.5 w-full z-20 rounded-xl overflow-hidden shadow-2xl"
             style={{
-              background: "rgba(15,23,42,0.95)",
+              background: "rgba(15,23,42,0.97)",
               border: "1px solid rgba(255,255,255,0.10)",
               backdropFilter: "blur(20px)",
             }}
@@ -251,7 +263,7 @@ function ConfigDropdown({
                     );
                     setOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-all ${
+                  className={`w-full text-left px-4 py-2 text-sm transition-all ${
                     isSelected
                       ? "text-white bg-white/[0.08]"
                       : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
@@ -265,6 +277,18 @@ function ConfigDropdown({
         </>
       )}
     </div>
+  );
+}
+
+/* ---- Sparkle Icon Animation ---- */
+function SparkleSparkle() {
+  return (
+    <span
+      className="inline-block animate-pulse"
+      style={{ animationDuration: "2s" }}
+    >
+      ✨
+    </span>
   );
 }
 
@@ -419,121 +443,139 @@ export default function HomePageClient({
   return (
     <div className="h-full overflow-auto">
       {/* ============================================ */}
-      {/* HERO SECTION — immersive dark gradient       */}
+      {/* HERO SECTION                                 */}
       {/* ============================================ */}
       <section
         className="relative overflow-hidden"
         style={{
           background:
-            "radial-gradient(circle at 20% 50%, rgba(99,102,241,0.35), transparent 35%), " +
-            "radial-gradient(circle at 80% 40%, rgba(168,85,247,0.35), transparent 35%), " +
-            "linear-gradient(135deg, #070b1f 0%, #11183a 50%, #23115a 100%)",
-          minHeight: "560px",
+            "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(99,102,241,0.15), transparent), " +
+            "radial-gradient(ellipse 60% 40% at 20% 60%, rgba(139,92,246,0.12), transparent), " +
+            "radial-gradient(ellipse 60% 40% at 80% 40%, rgba(59,130,246,0.12), transparent), " +
+            "linear-gradient(180deg, #0a0f2c 0%, #0d1137 40%, #111840 100%)",
+          minHeight: "540px",
         }}
       >
         {/* Tech light beams */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute rounded-full opacity-30"
+            className="absolute animate-glow"
             style={{
               width: "600px",
-              height: "200px",
-              background:
-                "linear-gradient(90deg, rgba(99,102,241,0.5), transparent)",
-              top: "15%",
-              left: "-10%",
-              transform: "rotate(-12deg)",
-              filter: "blur(64px)",
-            }}
-          />
-          <div
-            className="absolute rounded-full opacity-30"
-            style={{
-              width: "500px",
               height: "180px",
               background:
-                "linear-gradient(90deg, rgba(139,92,246,0.5), transparent)",
-              top: "40%",
-              right: "-5%",
-              transform: "rotate(8deg)",
-              filter: "blur(64px)",
+                "linear-gradient(90deg, rgba(99,102,241,0.4), transparent)",
+              top: "18%",
+              left: "-5%",
+              transform: "rotate(-14deg)",
+              filter: "blur(72px)",
             }}
           />
           <div
-            className="absolute rounded-full opacity-25"
+            className="absolute animate-glow"
+            style={{
+              width: "500px",
+              height: "160px",
+              background:
+                "linear-gradient(90deg, rgba(139,92,246,0.35), transparent)",
+              top: "42%",
+              right: "-5%",
+              transform: "rotate(10deg)",
+              filter: "blur(72px)",
+              animationDelay: "1s",
+            }}
+          />
+          <div
+            className="absolute animate-glow"
             style={{
               width: "400px",
-              height: "140px",
+              height: "130px",
               background:
-                "linear-gradient(90deg, rgba(59,130,246,0.4), transparent)",
-              bottom: "10%",
-              left: "25%",
-              transform: "rotate(-6deg)",
+                "linear-gradient(90deg, rgba(59,130,246,0.3), transparent)",
+              bottom: "8%",
+              left: "30%",
+              transform: "rotate(-8deg)",
               filter: "blur(64px)",
+              animationDelay: "2s",
             }}
           />
         </div>
 
-        {/* Decorative blur orbs */}
+        {/* Floating orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute top-[-60px] left-[-80px] w-[500px] h-[500px] rounded-full opacity-30"
+            className="absolute animate-float rounded-full"
             style={{
-              background: "rgba(99,102,241,0.3)",
+              width: "400px",
+              height: "400px",
+              top: "-100px",
+              left: "-120px",
+              background: "rgba(99,102,241,0.15)",
               filter: "blur(80px)",
             }}
           />
           <div
-            className="absolute bottom-[-80px] right-[-60px] w-[450px] h-[450px] rounded-full opacity-25"
+            className="absolute animate-float rounded-full"
             style={{
-              background: "rgba(139,92,246,0.3)",
+              width: "350px",
+              height: "350px",
+              bottom: "-100px",
+              right: "-100px",
+              background: "rgba(139,92,246,0.12)",
               filter: "blur(80px)",
+              animationDelay: "3s",
             }}
           />
         </div>
 
         <div
-          className="relative mx-auto px-6"
+          className="relative mx-auto"
           style={{
-            maxWidth: "1180px",
-            paddingTop: "70px",
+            maxWidth: "1100px",
+            padding: "60px 32px 0",
           }}
         >
           {/* Title */}
-          <h1
-            className="text-center text-white leading-tight"
-            style={{
-              fontSize: "56px",
-              fontWeight: 800,
-              letterSpacing: "-1px",
-            }}
-          >
-            有什么新的故事灵感？ ✨
-          </h1>
-          <p
-            className="text-center mt-4"
-            style={{
-              fontSize: "17px",
-              color: "#cbd5e1",
-            }}
-          >
-            输入你的故事灵感、风格和分镜要求，AI
-            将为你生成策划案、角色、场景和分镜
-          </p>
+          <div className="text-center mb-5">
+            <h1
+              className="text-white leading-tight"
+              style={{
+                fontSize: "52px",
+                fontWeight: 800,
+                letterSpacing: "-0.5px",
+                textShadow:
+                  "0 2px 40px rgba(99,102,241,0.3)",
+              }}
+            >
+              有什么新的故事灵感？ <SparkleSparkle />
+            </h1>
+            <p
+              className="mt-3"
+              style={{
+                fontSize: "16px",
+                color: "rgba(203,213,225,0.8)",
+                maxWidth: "680px",
+                margin: "0 auto",
+              }}
+            >
+              输入你的故事灵感、风格和分镜要求，AI
+              将为你生成策划案、角色、场景和分镜
+            </p>
+          </div>
 
           {/* AI Console Panel */}
           <div
-            className="mx-auto mt-8"
+            className="mx-auto"
             style={{
               width: "100%",
-              maxWidth: "1180px",
-              background: "rgba(15,23,42,0.52)",
-              border: "1px solid rgba(255,255,255,0.16)",
-              backdropFilter: "blur(24px)",
-              borderRadius: "28px",
+              maxWidth: "1100px",
+              background: "rgba(15,23,42,0.48)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(32px)",
+              borderRadius: "24px",
               boxShadow:
-                "0 30px 100px rgba(0,0,0,0.45)",
-              padding: "28px",
+                "0 24px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+              padding: "24px 28px",
             }}
           >
             {/* Textarea */}
@@ -541,36 +583,36 @@ export default function HomePageClient({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={PLACEHOLDER}
-              className="w-full bg-transparent border-none text-white placeholder-[#94a3b8] focus:outline-none resize-none"
+              className="w-full bg-transparent border-none text-white placeholder-gray-500 focus:outline-none resize-none"
               style={{
-                height: "145px",
-                fontSize: "16px",
-                lineHeight: "1.8",
+                height: "110px",
+                fontSize: "15px",
+                lineHeight: "1.7",
               }}
             />
 
             {/* Helper row: buttons + char count */}
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all">
-                  <Upload size={13} />
+            <div className="flex items-center justify-between -mt-1">
+              <div className="flex items-center gap-1.5">
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-all">
+                  <Upload size={12} />
                   上传参考
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all">
-                  <Wand2 size={13} />
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-all">
+                  <Wand2 size={12} />
                   AI 智能扩写
                 </button>
               </div>
               <span
-                className="text-xs"
-                style={{ color: "#64748b" }}
+                className="text-[11px]"
+                style={{ color: "#475569" }}
               >
                 {prompt.length} / 2000
               </span>
             </div>
 
             {/* Config row */}
-            <div className="flex flex-wrap gap-3 mt-4">
+            <div className="flex flex-wrap gap-2.5 mt-4">
               {CONFIG_ITEMS.map((item) => (
                 <ConfigDropdown
                   key={item.key}
@@ -587,29 +629,33 @@ export default function HomePageClient({
             </div>
 
             {/* Action buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
               {/* Primary: AI Generate */}
               <button
                 onClick={handleGenerate}
                 disabled={loading}
-                className="text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="text-white font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 style={{
-                  width: "360px",
-                  height: "60px",
+                  width: "340px",
+                  height: "56px",
                   background:
-                    "linear-gradient(90deg, #a855f7, #2563eb)",
-                  borderRadius: "20px",
-                  fontSize: "17px",
+                    "linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6)",
+                  borderRadius: "18px",
+                  fontSize: "16px",
                   boxShadow:
-                    "0 20px 50px rgba(79,70,229,0.45)",
+                    "0 16px 40px rgba(99,102,241,0.35)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform =
                     "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 20px 50px rgba(99,102,241,0.45)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform =
                     "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    "0 16px 40px rgba(99,102,241,0.35)";
                 }}
               >
                 {loading ? (
@@ -619,7 +665,7 @@ export default function HomePageClient({
                   </>
                 ) : (
                   <>
-                    <Sparkles size={18} />
+                    <Sparkles size={17} />
                     AI 生成策划案
                   </>
                 )}
@@ -631,19 +677,31 @@ export default function HomePageClient({
                   onClick={() =>
                     setShowDemoPopover(!showDemoPopover)
                   }
-                  className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white rounded-[18px] transition-all"
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white rounded-xl transition-all"
                   style={{
-                    height: "52px",
-                    padding: "0 20px",
+                    height: "50px",
+                    padding: "0 18px",
                     background:
-                      "rgba(15,23,42,0.50)",
+                      "rgba(15,23,42,0.45)",
                     border:
                       "1px solid rgba(255,255,255,0.08)",
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(15,23,42,0.65)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(15,23,42,0.45)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.08)";
+                  }}
                 >
-                  <Play size={14} />
+                  <Play size={13} />
                   创建演示项目
-                  <ChevronDown size={14} />
+                  <ChevronDown size={13} />
                 </button>
                 {showDemoPopover && (
                   <>
@@ -654,7 +712,7 @@ export default function HomePageClient({
                       }
                     />
                     <div
-                      className="absolute top-full left-0 mt-2 w-60 z-20 rounded-2xl overflow-hidden shadow-2xl"
+                      className="absolute top-full left-0 mt-2 w-60 z-20 rounded-xl overflow-hidden shadow-2xl"
                       style={{
                         background:
                           "rgba(15,23,42,0.98)",
@@ -701,17 +759,29 @@ export default function HomePageClient({
                 onClick={() =>
                   setShowCreateModal(true)
                 }
-                className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white rounded-[18px] transition-all"
+                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white rounded-xl transition-all"
                 style={{
-                  height: "52px",
-                  padding: "0 20px",
+                  height: "50px",
+                  padding: "0 18px",
                   background:
-                    "rgba(15,23,42,0.50)",
+                    "rgba(15,23,42,0.45)",
                   border:
                     "1px solid rgba(255,255,255,0.08)",
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background =
+                    "rgba(15,23,42,0.65)";
+                  e.currentTarget.style.borderColor =
+                    "rgba(255,255,255,0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background =
+                    "rgba(15,23,42,0.45)";
+                  e.currentTarget.style.borderColor =
+                    "rgba(255,255,255,0.08)";
+                }}
               >
-                <Plus size={14} />
+                <Plus size={13} />
                 新建项目
               </button>
 
@@ -726,7 +796,7 @@ export default function HomePageClient({
                   onClick={() =>
                     setShowBossDemo(true)
                   }
-                  className="text-gray-500 text-xs hover:text-white transition-colors underline underline-offset-2"
+                  className="text-gray-600 text-xs hover:text-gray-400 transition-colors underline underline-offset-2"
                 >
                   老板演示说明
                 </button>
@@ -737,80 +807,80 @@ export default function HomePageClient({
       </section>
 
       {/* ============================================ */}
-      {/* LIGHT CONTENT AREA — #f6f7fb                    */}
+      {/* LIGHT CONTENT AREA                           */}
       {/* ============================================ */}
-      <div style={{ background: "#f6f7fb" }}>
+      <div style={{ background: "#f1f2f7" }}>
         <div
           className="mx-auto"
           style={{
-            maxWidth: "1480px",
-            padding: "0 48px 80px",
+            maxWidth: "1400px",
+            padding: "0 40px 80px",
           }}
         >
-          {/* ===== Capability Cards (floating up) ===== */}
+          {/* ===== Capability Cards ===== */}
           <div
-            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
-            style={{ marginTop: "-48px" }}
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            style={{ marginTop: "-40px" }}
           >
-            {FLOW_CARDS.map((card) => (
-              <div
-                key={card.title}
-                className="flex items-center gap-[18px] transition-all hover:shadow-lg"
-                style={{
-                  background: "white",
-                  borderRadius: "24px",
-                  boxShadow:
-                    "0 20px 60px rgba(15,23,42,0.10)",
-                  padding: "28px",
-                  height: "120px",
-                }}
-              >
+            {FLOW_CARDS.map((card) => {
+              const Icon = card.icon;
+              return (
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shrink-0 shadow-md`}
+                  key={card.title}
+                  className="flex items-center gap-5 transition-all hover:-translate-y-1"
                   style={{
-                    width: "48px",
-                    height: "48px",
+                    background: "white",
+                    borderRadius: "22px",
+                    boxShadow:
+                      "0 16px 48px rgba(15,23,42,0.07)",
+                    padding: "24px 26px",
+                    height: "116px",
+                    border: `1px solid ${card.border}`,
                   }}
                 >
-                  <card.icon
-                    size={22}
-                    className="text-white"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <h3
-                    className="mb-1"
+                  <div
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shrink-0 shadow-sm`}
                     style={{
-                      fontSize: "16px",
-                      fontWeight: 700,
-                      color: "#0f172a",
+                      width: "46px",
+                      height: "46px",
                     }}
                   >
-                    {card.title}
-                  </h3>
-                  <p
-                    className="line-clamp-2"
-                    style={{
-                      fontSize: "13px",
-                      color: "#64748b",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {card.desc}
-                  </p>
+                    <Icon size={20} className="text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3
+                      className="mb-1"
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {card.title}
+                    </h3>
+                    <p
+                      className="whitespace-pre-line leading-relaxed"
+                      style={{
+                        fontSize: "12.5px",
+                        color: "#64748b",
+                      }}
+                    >
+                      {card.desc}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* ===== Tabs ===== */}
-          <div className="flex items-center justify-between pt-12 pb-6">
+          <div className="flex items-center justify-between pt-12 pb-5">
             <div className="flex items-center gap-8">
               <button
                 onClick={() =>
                   setActiveTab("inspiration")
                 }
-                className="relative pb-2 text-lg font-semibold transition-all"
+                className="relative pb-2.5 text-[17px] font-semibold transition-all"
                 style={{
                   color: demoTabActive
                     ? "#0f172a"
@@ -823,6 +893,7 @@ export default function HomePageClient({
                     className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
                     style={{
                       height: "3px",
+                      width: "28px",
                       background:
                         "linear-gradient(90deg, #6366f1, #8b5cf6)",
                     }}
@@ -833,7 +904,7 @@ export default function HomePageClient({
                 onClick={() =>
                   setActiveTab("projects")
                 }
-                className="relative pb-2 text-lg font-semibold transition-all"
+                className="relative pb-2.5 text-[17px] font-semibold transition-all"
                 style={{
                   color: !demoTabActive
                     ? "#0f172a"
@@ -851,6 +922,7 @@ export default function HomePageClient({
                     className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
                     style={{
                       height: "3px",
+                      width: "28px",
                       background:
                         "linear-gradient(90deg, #6366f1, #8b5cf6)",
                     }}
@@ -878,34 +950,59 @@ export default function HomePageClient({
               {DEMO_PROJECTS.map((demo) => (
                 <div
                   key={demo.title}
-                  className="bg-white overflow-hidden transition-all hover:shadow-xl"
+                  className="bg-white overflow-hidden transition-all hover:-translate-y-1 group"
                   style={{
-                    borderRadius: "24px",
+                    borderRadius: "22px",
                     boxShadow:
-                      "0 18px 50px rgba(15,23,42,0.10)",
-                    height: "320px",
+                      "0 16px 48px rgba(15,23,42,0.08)",
+                    height: "340px",
                     display: "flex",
                     flexDirection: "column",
                   }}
                 >
                   {/* Cover */}
                   <div
-                    className="relative shrink-0"
+                    className="relative shrink-0 overflow-hidden"
                     style={{
-                      height: "180px",
+                      height: "195px",
                       background: demo.coverGradient,
                     }}
                   >
-                    <div className="absolute inset-0 bg-black/10" />
-                    <div className="absolute top-3 left-4">
+                    {/* Decorative elements in cover */}
+                    <div
+                      className="absolute rounded-full opacity-30"
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        top: "20%",
+                        right: "15%",
+                        background:
+                          "rgba(255,255,255,0.15)",
+                        filter: "blur(20px)",
+                      }}
+                    />
+                    <div
+                      className="absolute rounded-full opacity-20"
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        bottom: "10%",
+                        left: "10%",
+                        background:
+                          "rgba(255,255,255,0.1)",
+                        filter: "blur(16px)",
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <div className="absolute top-3.5 left-4">
                       <span
-                        className="text-xs px-2.5 py-1 rounded-full"
+                        className="text-[11px] px-2.5 py-1 rounded-full font-medium"
                         style={{
                           background:
-                            "rgba(255,255,255,0.18)",
+                            "rgba(255,255,255,0.15)",
                           color: "white",
                           border:
-                            "1px solid rgba(255,255,255,0.15)",
+                            "1px solid rgba(255,255,255,0.2)",
                           backdropFilter: "blur(8px)",
                         }}
                       >
@@ -917,7 +1014,7 @@ export default function HomePageClient({
                   {/* Info */}
                   <div className="flex-1 p-5 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-bold text-[#0f172a] text-base mb-1">
+                      <h3 className="font-bold text-[#0f172a] text-[15px] mb-1.5">
                         {demo.title}
                       </h3>
                       <p
@@ -929,11 +1026,26 @@ export default function HomePageClient({
                         {demo.description}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex -space-x-1">
+                          {[0, 1, 2].map((i) => (
+                            <div
+                              key={i}
+                              className="w-6 h-6 rounded-full border-2 border-white"
+                              style={{
+                                background: [
+                                  "linear-gradient(135deg, #f9a8d4, #c084fc)",
+                                  "linear-gradient(135deg, #93c5fd, #6366f1)",
+                                  "linear-gradient(135deg, #a7f3d0, #34d399)",
+                                ][i],
+                              }}
+                            />
+                          ))}
+                        </div>
                         <Star
                           size={14}
-                          className="text-amber-400 fill-amber-400"
+                          className="text-amber-400 fill-amber-400 ml-1"
                         />
                         <span className="text-sm font-semibold text-[#0f172a]">
                           {demo.rating}
@@ -946,10 +1058,10 @@ export default function HomePageClient({
                               demo.title
                             )
                           }
-                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all hover:opacity-90"
+                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-90"
                           style={{
                             background:
-                              "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                              "linear-gradient(90deg, #8b5cf6, #6366f1)",
                             color: "white",
                           }}
                         >
@@ -961,10 +1073,10 @@ export default function HomePageClient({
                           onClick={() =>
                             handleCreateDemo(demo)
                           }
-                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all hover:opacity-90"
+                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-90"
                           style={{
                             background:
-                              "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                              "linear-gradient(90deg, #8b5cf6, #6366f1)",
                             color: "white",
                           }}
                         >
@@ -1012,31 +1124,43 @@ export default function HomePageClient({
                   {projects.map((p) => (
                     <div
                       key={p.id}
-                      className="bg-white overflow-hidden transition-all hover:shadow-xl group"
+                      className="bg-white overflow-hidden transition-all hover:-translate-y-1 group"
                       style={{
-                        borderRadius: "24px",
+                        borderRadius: "22px",
                         boxShadow:
-                          "0 18px 50px rgba(15,23,42,0.10)",
+                          "0 16px 48px rgba(15,23,42,0.08)",
                       }}
                     >
                       {/* Cover */}
                       <div
-                        className="h-40 relative overflow-hidden"
+                        className="h-44 relative overflow-hidden"
                         style={{
                           background:
                             getCoverGradient(p.title),
                         }}
                       >
-                        <div className="absolute inset-0 bg-black/10" />
-                        <div className="absolute top-3 right-3 flex gap-1.5">
+                        <div
+                          className="absolute rounded-full opacity-30"
+                          style={{
+                            width: "100px",
+                            height: "100px",
+                            top: "20%",
+                            right: "20%",
+                            background:
+                              "rgba(255,255,255,0.12)",
+                            filter: "blur(20px)",
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        <div className="absolute top-3.5 right-4 flex gap-1.5">
                           <span
-                            className="text-xs px-2.5 py-0.5 rounded-full"
+                            className="text-[11px] px-2.5 py-0.5 rounded-full font-medium"
                             style={{
                               background:
-                                "rgba(255,255,255,0.18)",
+                                "rgba(255,255,255,0.15)",
                               color: "white",
                               border:
-                                "1px solid rgba(255,255,255,0.15)",
+                                "1px solid rgba(255,255,255,0.2)",
                               backdropFilter:
                                 "blur(8px)",
                             }}
@@ -1048,7 +1172,7 @@ export default function HomePageClient({
 
                       {/* Info */}
                       <div className="p-5">
-                        <h3 className="font-semibold text-[#0f172a] text-sm mb-1.5 truncate">
+                        <h3 className="font-semibold text-[#0f172a] text-[15px] mb-1.5 truncate">
                           {p.title}
                         </h3>
                         {p.description && (
@@ -1065,7 +1189,7 @@ export default function HomePageClient({
                           <div className="flex gap-1.5 flex-wrap">
                             {p.type && (
                               <span
-                                className="text-[10px] px-2 py-0.5 rounded-full"
+                                className="text-[10px] px-2 py-0.5 rounded-full font-medium"
                                 style={{
                                   background:
                                     "rgba(99,102,241,0.08)",
@@ -1112,10 +1236,10 @@ export default function HomePageClient({
                                 `/projects/${p.id}`
                               )
                             }
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium rounded-xl transition-all hover:opacity-90"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold rounded-xl transition-all hover:opacity-90"
                             style={{
                               background:
-                                "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                                "linear-gradient(90deg, #8b5cf6, #6366f1)",
                               color: "white",
                             }}
                           >
