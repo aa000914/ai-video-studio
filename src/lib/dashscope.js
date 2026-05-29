@@ -205,38 +205,75 @@ export async function submitTask(serviceType, input, params = {}, modelOverride)
 }
 
 /**
+ * 将 duration 统一转为整数秒。
+ * 支持 "5s" / "10s" / "5" / 5 等格式，默认 5，范围 2-15。
+ */
+function normalizeDuration(duration) {
+  if (duration == null) return 5;
+  const num = Number(String(duration).replace("s", ""));
+  if (!Number.isInteger(num) || num < 2 || num > 15) return 5;
+  return num;
+}
+
+/**
  * 提交文生视频任务
+ *
+ * DashScope 请求体：
+ * {
+ *   "model": WAN_T2V_MODEL,
+ *   "input": { "prompt": prompt },
+ *   "parameters": { "resolution", "ratio", "duration": 整数, "prompt_extend": true, "watermark": false }
+ * }
  */
 export async function submitTextToVideo(prompt, options = {}) {
   const model = process.env.WAN_T2V_MODEL || "wan2.7-t2v";
-  const params = { resolution: options.resolution || "720P" };
-  if (options.duration) params.duration = options.duration;
-  if (options.ratio) params.ratio = options.ratio;
+  const params = {
+    resolution: options.resolution || "720P",
+    ratio: options.ratio || "16:9",
+    duration: normalizeDuration(options.duration),
+    prompt_extend: true,
+    watermark: false,
+  };
   if (options.negative_prompt) params.negative_prompt = options.negative_prompt;
   return submitTask("video-generation", { prompt }, params, model);
 }
 
 /**
  * 提交图生视频任务
+ *
+ * DashScope 请求体：
+ * {
+ *   "model": WAN_I2V_MODEL,
+ *   "input": {
+ *     "prompt": prompt,
+ *     "media": [{ "type": "first_frame", "url": imageUrl }]
+ *   },
+ *   "parameters": { "resolution", "duration": 整数, "prompt_extend": true, "watermark": false }
+ * }
  */
 export async function submitImageToVideo(imageUrl, prompt, options = {}) {
   const model = process.env.WAN_I2V_MODEL || "wan2.7-i2v-2026-04-25";
-  const params = { resolution: options.resolution || "720P" };
-  if (options.duration) params.duration = options.duration;
-  if (options.ratio) params.ratio = options.ratio;
-  return submitTask("video-generation", { image_url: imageUrl, prompt: prompt || "Generate video from this image" }, params, model);
+  const input = {
+    prompt,
+    media: [{ type: "first_frame", url: imageUrl }],
+  };
+  const params = {
+    resolution: options.resolution || "720P",
+    duration: normalizeDuration(options.duration),
+    prompt_extend: true,
+    watermark: false,
+  };
+  return submitTask("video-generation", input, params, model);
 }
 
 /**
  * 提交视频编辑任务
  */
 export async function submitVideoEdit(serviceType, videoUrl, prompt, options = {}) {
-  if (serviceType === "happyhorse-videoedit") {
-    const model = process.env.HAPPYHORSE_VIDEO_EDIT_MODEL || "happyhorse-1.0-video-edit";
-    return submitTask("video-generation", { video_url: videoUrl, prompt }, {}, model);
-  }
-  const model = process.env.WAN_VIDEO_EDIT_MODEL || "wan2.7-videoedit";
-  return submitTask("video-generation", { video_url: videoUrl, prompt }, {}, model);
+  const defaultModel = serviceType === "happyhorse-videoedit"
+    ? process.env.HAPPYHORSE_VIDEO_EDIT_MODEL || "happyhorse-1.0-video-edit"
+    : process.env.WAN_VIDEO_EDIT_MODEL || "wan2.7-videoedit";
+  return submitTask("video-generation", { video_url: videoUrl, prompt }, {}, defaultModel);
 }
 
 /** 根据服务类型获取模型名 */

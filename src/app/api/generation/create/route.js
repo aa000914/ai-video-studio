@@ -7,6 +7,17 @@ import {
 } from "@/lib/dashscope";
 
 /**
+ * 将 duration 统一转为整数秒。
+ * 支持 "5s" / "10s" / "5" / 5，默认 5，范围 2-15。
+ */
+function normalizeDuration(duration) {
+  if (duration == null) return 5;
+  const num = Number(String(duration).replace("s", ""));
+  if (!Number.isInteger(num) || num < 2 || num > 15) return 5;
+  return num;
+}
+
+/**
  * POST /api/generation/create
  *
  * Unified API to create a generation task (image, t2v, i2v, video_edit).
@@ -122,22 +133,24 @@ export async function POST(req) {
         }
 
         case "t2v": {
-          const params = {};
-          if (resolution) params.resolution = resolution;
-          if (duration) params.duration = duration;
-          if (negative_prompt) params.negative_prompt = negative_prompt;
-          dashscopeResult = await submitTextToVideo(prompt.trim(), params);
+          const numDuration = normalizeDuration(duration);
+          dashscopeResult = await submitTextToVideo(prompt.trim(), {
+            resolution: resolution || "720P",
+            ratio: "16:9",
+            duration: numDuration,
+            negative_prompt,
+          });
           break;
         }
 
         case "i2v": {
           if (!imageUrl) {
-            throw new Error("图生视频需要提供 imageUrl");
+            throw new Error("图生视频需要先生成或提供分镜图 imageUrl");
           }
-          const params = {};
-          if (resolution) params.resolution = resolution;
-          if (duration) params.duration = duration;
-          dashscopeResult = await submitImageToVideo(imageUrl, prompt.trim(), params);
+          dashscopeResult = await submitImageToVideo(imageUrl, prompt.trim(), {
+            resolution: resolution || "720P",
+            duration: normalizeDuration(duration),
+          });
           break;
         }
 
