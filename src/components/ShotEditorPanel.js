@@ -220,6 +220,7 @@ export default function ShotEditorPanel({ projectId }) {
         if (url) {
           setResultImageUrl(url);
           setImageTaskStatus("succeeded");
+          saveShotField("image_url", url);
           return;
         }
       }
@@ -244,6 +245,7 @@ export default function ShotEditorPanel({ projectId }) {
           if (url) {
             setResultImageUrl(url);
             setImageTaskStatus("succeeded");
+            saveShotField("image_url", url);
           } else {
             throw new Error("生成成功但未返回图片 URL");
           }
@@ -267,6 +269,17 @@ export default function ShotEditorPanel({ projectId }) {
       }
       setImageTaskStatus("failed");
     }
+  }
+
+  async function saveShotField(field, value) {
+    if (!selected) return;
+    try {
+      await fetch(`/api/shots/${selected.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+    } catch { /* best effort */ }
   }
 
   function handleRetryImage() {
@@ -337,6 +350,7 @@ export default function ShotEditorPanel({ projectId }) {
             setResultVideoUrl(url);
             setVideoTaskStatus("succeeded");
             setMessage("视频生成成功");
+            saveShotField("video_url", url);
           } else {
             throw new Error("生成成功但未返回视频 URL");
           }

@@ -27,6 +27,11 @@ export default function CharacterPanel({ projectId }) {
   const [message, setMessage] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
+  // Per-character image generation
+  const [genStates, setGenStates] = useState({}); // { [charId]: "idle"|"generating"|"done"|"error" }
+  const [genImages, setGenImages] = useState({}); // { [charId]: "url" }
+  const [genErrors, setGenErrors] = useState({}); // { [charId]: "error msg" }
+
   useEffect(() => { loadCharacters(); }, [projectId]);
 
   async function loadCharacters() {
@@ -109,6 +114,47 @@ export default function CharacterPanel({ projectId }) {
     } catch { /* ignore */ }
   }
 
+  async function handleGenerateCharImage(c) {
+    const prompt = c.prompt_front || c.prompt;
+    if (!prompt?.trim()) {
+      setMessage("请先填写角色提示词");
+      return;
+    }
+    setGenStates((prev) => ({ ...prev, [c.id]: "generating" }));
+    setGenErrors((prev) => ({ ...prev, [c.id]: "" }));
+    try {
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt.trim(), size: "1024*1024" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "生成失败");
+      if (data.results?.[0]?.url) {
+        setGenImages((prev) => ({ ...prev, [c.id]: data.results[0].url }));
+        setGenStates((prev) => ({ ...prev, [c.id]: "done" }));
+      } else if (data.task_id) {
+        // Async mode — poll
+        const taskId = data.task_id;
+        for (let i = 0; i < 30; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const poll = await fetch(`/api/media-task?task_id=${taskId}`);
+          const pollData = await poll.json();
+          if (pollData.status === "SUCCEEDED" && pollData.results?.[0]?.url) {
+            setGenImages((prev) => ({ ...prev, [c.id]: pollData.results[0].url }));
+            setGenStates((prev) => ({ ...prev, [c.id]: "done" }));
+            return;
+          }
+          if (pollData.status === "FAILED") throw new Error(pollData.error || "生成失败");
+        }
+        throw new Error("生成超时");
+      }
+    } catch (err) {
+      setGenErrors((prev) => ({ ...prev, [c.id]: err.message }));
+      setGenStates((prev) => ({ ...prev, [c.id]: "error" }));
+    }
+  }
+
   if (loading) return <div className="text-sm text-gray-400 py-8 text-center">加载中...</div>;
 
   return (
@@ -178,18 +224,48 @@ export default function CharacterPanel({ projectId }) {
                 </div>
               )}
 
-              {/* Subject image placeholder */}
-              <div className="mt-3 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
-                <div className="text-gray-300 text-2xl mb-1">🖼</div>
-                <p className="text-xs text-gray-400">主体图占位区域</p>
-              </div>
+              {/* Subject image */}
+              {genImages[c.id] ? (
+                <div className="mt-3 rounded-lg overflow-hidden bg-gray-100 relative">
+                  <img src={genImages[c.id]} alt={c.name} className="w-full h-48 object-cover" />
+                  <button
+                    onClick={() => { setGenImages((prev) => ({ ...prev, [c.id]: "" })); setGenStates((prev) => ({ ...prev, [c.id]: "idle" })); }}
+                    className="absolute top-1.5 right-1.5 bg-white/80 text-gray-600 px-2 py-0.5 rounded text-[10px] hover:bg-white"
+                  >
+                    重生成
+                  </button>
+                </div>
+              ) : genStates[c.id] === "generating" ? (
+                <div className="mt-3 border-2 border-dashed border-blue-300 rounded-lg p-4 text-center bg-blue-50/50">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-1" />
+                  <p className="text-xs text-blue-600">AI 生成中...</p>
+                </div>
+              ) : genStates[c.id] === "error" ? (
+                <div className="mt-3 border-2 border-dashed border-red-200 rounded-lg p-3 text-center bg-red-50">
+                  <p className="text-xs text-red-500">{genErrors[c.id] || "生成失败"}</p>
+                  <button onClick={() => handleGenerateCharImage(c)}
+                    className="mt-1 text-xs text-blue-600 hover:underline">重试</button>
+                </div>
+              ) : (
+                <div className="mt-3 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
+                  <div className="text-gray-300 text-2xl mb-1">🖼</div>
+                  <p className="text-xs text-gray-400">主体图占位区域</p>
+                  <p className="text-[10px] text-gray-300 mt-1">正面单人 · 背景干净 · 五官清晰</p>
+                </div>
+              )}
 
-              <button
-                onClick={() => copyCharPrompt(c)}
-                className="mt-3 w-full border border-blue-200 text-blue-600 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors"
-              >
-                {copiedId === c.id ? "已复制" : "复制角色提示词"}
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => copyCharPrompt(c)}
+                  className="flex-1 border border-blue-200 text-blue-600 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors">
+                  {copiedId === c.id ? "已复制" : "复制提示词"}
+                </button>
+                <button
+                  onClick={() => handleGenerateCharImage(c)}
+                  disabled={genStates[c.id] === "generating"}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all">
+                  {genStates[c.id] === "generating" ? "生成中..." : "生成角色图"}
+                </button>
+              </div>
             </div>
           ))}
         </div>

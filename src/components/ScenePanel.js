@@ -27,6 +27,10 @@ export default function ScenePanel({ projectId }) {
   const [message, setMessage] = useState("");
   const [copiedId, setCopiedId] = useState(null);
 
+  const [genStates, setGenStates] = useState({});
+  const [genImages, setGenImages] = useState({});
+  const [genErrors, setGenErrors] = useState({});
+
   useEffect(() => { loadScenes(); }, [projectId]);
 
   async function loadScenes() {
@@ -72,6 +76,39 @@ export default function ScenePanel({ projectId }) {
     if (!confirm("确定要删除这个场景吗？")) return;
     try { await fetch(`/api/scenes/${id}`, { method: "DELETE" }); await loadScenes(); }
     catch (err) { setMessage("删除失败: " + err.message); }
+  }
+
+  async function handleGenerateSceneImage(s) {
+    const prompt = s.prompt_front || s.prompt;
+    if (!prompt?.trim()) { setMessage("请先填写场景提示词"); return; }
+    setGenStates((prev) => ({ ...prev, [s.id]: "generating" }));
+    setGenErrors((prev) => ({ ...prev, [s.id]: "" }));
+    try {
+      const res = await fetch("/api/generate-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: prompt.trim(), size: "1024*1024" }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "生成失败");
+      if (data.results?.[0]?.url) {
+        setGenImages((prev) => ({ ...prev, [s.id]: data.results[0].url }));
+        setGenStates((prev) => ({ ...prev, [s.id]: "done" }));
+      } else if (data.task_id) {
+        const taskId = data.task_id;
+        for (let i = 0; i < 30; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const poll = await fetch(`/api/media-task?task_id=${taskId}`);
+          const pollData = await poll.json();
+          if (pollData.status === "SUCCEEDED" && pollData.results?.[0]?.url) {
+            setGenImages((prev) => ({ ...prev, [s.id]: pollData.results[0].url }));
+            setGenStates((prev) => ({ ...prev, [s.id]: "done" }));
+            return;
+          }
+          if (pollData.status === "FAILED") throw new Error(pollData.error || "生成失败");
+        }
+        throw new Error("生成超时");
+      }
+    } catch (err) {
+      setGenErrors((prev) => ({ ...prev, [s.id]: err.message }));
+      setGenStates((prev) => ({ ...prev, [s.id]: "error" }));
+    }
   }
 
   async function copyScenePrompt(s) {
@@ -177,18 +214,40 @@ export default function ScenePanel({ projectId }) {
                 )}
               </div>
 
-              {/* Subject image placeholder */}
-              <div className="border-2 border-dashed border-gray-200 rounded-lg p-3 text-center mb-3">
-                <div className="text-gray-300 text-xl mb-0.5">🖼</div>
-                <p className="text-xs text-gray-400">场景参考图占位</p>
-              </div>
+              {/* Scene image */}
+              {genImages[s.id] ? (
+                <div className="rounded-lg overflow-hidden bg-gray-100 relative mb-3 h-40">
+                  <img src={genImages[s.id]} alt={s.name} className="w-full h-full object-cover" />
+                  <button onClick={() => { setGenImages((prev) => ({ ...prev, [s.id]: "" })); setGenStates((prev) => ({ ...prev, [s.id]: "idle" })); }}
+                    className="absolute top-1.5 right-1.5 bg-white/80 text-gray-600 px-2 py-0.5 rounded text-[10px] hover:bg-white">重生成</button>
+                </div>
+              ) : genStates[s.id] === "generating" ? (
+                <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 text-center bg-blue-50/50 mb-3">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-1" />
+                  <p className="text-xs text-blue-600">AI 生成中...</p>
+                </div>
+              ) : genStates[s.id] === "error" ? (
+                <div className="border-2 border-dashed border-red-200 rounded-lg p-3 text-center bg-red-50 mb-3">
+                  <p className="text-xs text-red-500">{genErrors[s.id] || "生成失败"}</p>
+                  <button onClick={() => handleGenerateSceneImage(s)} className="mt-1 text-xs text-blue-600 hover:underline">重试</button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-3 text-center mb-3">
+                  <div className="text-gray-300 text-xl mb-0.5">🖼</div>
+                  <p className="text-xs text-gray-400">场景参考图占位</p>
+                </div>
+              )}
 
-              <button
-                onClick={() => copyScenePrompt(s)}
-                className="w-full border border-green-200 text-green-600 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors"
-              >
-                {copiedId === s.id ? "已复制" : "复制场景提示词"}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => copyScenePrompt(s)}
+                  className="flex-1 border border-green-200 text-green-600 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors">
+                  {copiedId === s.id ? "已复制" : "复制提示词"}
+                </button>
+                <button onClick={() => handleGenerateSceneImage(s)} disabled={genStates[s.id] === "generating"}
+                  className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all">
+                  {genStates[s.id] === "generating" ? "生成中..." : "生成场景图"}
+                </button>
+              </div>
             </div>
           ))}
         </div>
