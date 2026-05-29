@@ -151,9 +151,9 @@ export async function queryTask(taskId) {
 /**
  * 提交文生图任务
  *
- * 策略：
- * 1. 先用 wan2.6-t2i 同步 multimodal 接口 (最快)
- * 2. 回退到 wanx-v1 异步旧接口
+ * 策略（只用免费额度内模型）：
+ * 1. wan2.7-image-pro — 主力（50/50免费额度）
+ * 2. wan2.7-image — 回退（50/50免费额度）
  *
  * @param {string} prompt - 图片提示词
  * @param {object} options
@@ -161,63 +161,28 @@ export async function queryTask(taskId) {
  */
 export async function submitImageTask(prompt, options = {}) {
   const { size, n, negative_prompt, ref_image } = options;
-  const preferredModel = process.env.QWEN_IMAGE_MODEL || "qwen-image-2.0-pro";
 
-  // === 策略 1: wan2.6-t2i 同步 multimodal ===
+  const content = [{ text: prompt }];
+  if (ref_image && ref_image.startsWith("http")) {
+    content.push({ image: ref_image });
+  }
+  const messages = [{ role: "user", content }];
+
+  // 策略 1: wan2.7-image-pro (免费额度 50)
   try {
-    const content = [{ text: prompt }];
-    if (ref_image && ref_image.startsWith("http")) {
-      content.push({ image: ref_image });
-    }
-    const messages = [{ role: "user", content }];
-    return await callMultimodalSync("wan2.6-t2i", messages);
+    return await callMultimodalSync("wan2.7-image-pro", messages);
   } catch (err) {
-    // wan2.6-t2i 失败，继续尝试回退
-    console.warn("wan2.6-t2i failed, trying fallbacks:", err.message);
+    console.warn("wan2.7-image-pro failed:", err.message);
   }
 
-  // === 策略 2: wanx-v1 异步旧接口 ===
+  // 策略 2: wan2.7-image (免费额度 50)
   try {
-    const body = {
-      model: "wanx-v1",
-      input: { prompt },
-      parameters: {},
-    };
-    if (size) body.parameters.size = size;
-    if (n) body.parameters.n = n;
-    if (negative_prompt) body.parameters.negative_prompt = negative_prompt;
-
-    return await submitAsyncTask(SERVICE_ENDPOINTS.text2image, body);
+    return await callMultimodalSync("wan2.7-image", messages);
   } catch (err) {
-    console.warn("wanx-v1 failed:", err.message);
+    console.warn("wan2.7-image failed:", err.message);
   }
 
-  // === 策略 3: 用户的首选模型 (qwen-image-2.0-pro) ===
-  if (preferredModel !== "wan2.6-t2i" && preferredModel !== "wanx-v1") {
-    try {
-      const isPro = preferredModel.includes("-pro");
-      if (isPro) {
-        const content = [{ text: prompt }];
-        if (ref_image && ref_image.startsWith("http")) {
-          content.push({ image: ref_image });
-        }
-        const messages = [{ role: "user", content }];
-        return await callMultimodalSync(preferredModel, messages);
-      }
-      const body = {
-        model: preferredModel,
-        input: { prompt },
-        parameters: {},
-      };
-      if (size) body.parameters.size = size;
-      if (n) body.parameters.n = n;
-      return await submitAsyncTask(SERVICE_ENDPOINTS.text2image, body);
-    } catch (err) {
-      console.warn("Preferred model failed:", err.message);
-    }
-  }
-
-  throw new Error("所有生图模型均不可用，请检查 DASHSCOPE_API_KEY 和模型权限");
+  throw new Error("所有生图模型均不可用（wan2.7-image-pro / wan2.7-image），请检查免费额度");
 }
 
 /**

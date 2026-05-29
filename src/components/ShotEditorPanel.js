@@ -11,17 +11,17 @@ const STATUS_COLORS = {
   "已通过": "bg-green-100 text-green-700",
 };
 
-const IMAGE_MODELS = ["qwen-image-2.0-pro", "qwen-image-2.0"];
+const IMAGE_MODELS = ["wan2.7-image-pro", "wan2.7-image"];
 const IMAGE_MODEL_HINTS = {
-  "qwen-image-2.0-pro": "文生图适合视觉类短片，风格更灵活。",
-  "qwen-image-2.0": "参考生图适合剧情类剧集，角色和场景一致性更好。",
+  "wan2.7-image-pro": "wan2.7-image-pro — 免费额度 50，主力生图模型。",
+  "wan2.7-image": "wan2.7-image — 免费额度 50，回退模型。",
 };
-const VIDEO_MODELS = ["wan2.7-i2v", "wan2.7-t2v", "wan2.7-videoedit", "happyhorse"];
+const VIDEO_MODELS = ["wan2.7-t2v", "wan2.7-i2v-2026-04-25", "wan2.7-videoedit", "happyhorse-1.0-video-edit"];
 const VIDEO_MODEL_LABELS = {
-  "wan2.7-i2v": "图生视频",
-  "wan2.7-t2v": "文生视频",
-  "wan2.7-videoedit": "视频编辑 (WAN)",
-  "happyhorse": "HappyHorse",
+  "wan2.7-t2v": "文生视频 (40/50免费)",
+  "wan2.7-i2v-2026-04-25": "图生视频 (50/50免费)",
+  "wan2.7-videoedit": "视频编辑 WAN (50/50免费)",
+  "happyhorse-1.0-video-edit": "HappyHorse 编辑 (10/10免费)",
 };
 const RESOLUTIONS = ["720P", "1080P"];
 const VIDEO_DURATIONS = ["5s", "10s"];
@@ -36,7 +36,7 @@ export default function ShotEditorPanel({ projectId }) {
   const [copiedField, setCopiedField] = useState("");
 
   // Model config
-  const [imageModel, setImageModel] = useState("qwen-image-2.0-pro");
+  const [imageModel, setImageModel] = useState("wan2.7-image-pro");
   const [videoModel, setVideoModel] = useState("wan2.7-t2v");
   const [resolution, setResolution] = useState("720P");
   const [videoDuration, setVideoDuration] = useState("5s");
@@ -563,7 +563,7 @@ export default function ShotEditorPanel({ projectId }) {
                     </button>
                   </div>
                   <div className="absolute bottom-2 left-2 bg-white/80 text-green-700 px-2 py-0.5 rounded text-xs">
-                    阿里云百炼 · qwen-image-2.0-pro
+                    阿里云百炼 · wan2.7-image-pro
                   </div>
                 </div>
               ) : imageTaskStatus === "failed" ? (
@@ -722,10 +722,10 @@ export default function ShotEditorPanel({ projectId }) {
                       ? "提交中..."
                       : imageTaskStatus === "running"
                       ? "生成中..."
-                      : "🎨 生成分镜图 · qwen-image-2.0-pro"}
+                      : "🎨 生成分镜图 · wan2.7-image-pro"}
                   </button>
                   <p className="text-xs text-gray-400 mt-1 text-center">
-                    阿里云百炼 · 异步生图
+                    免费额度 50 · 同步生成
                   </p>
                 </div>
               </div>
