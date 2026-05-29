@@ -20,20 +20,18 @@ import {
   Star,
   Trash2,
   ExternalLink,
+  Upload,
+  Wand2,
 } from "lucide-react";
 import CreateProjectModal from "@/components/CreateProjectModal";
 
-const CONTENT_TYPES = ["短剧漫剧", "音乐MV", "知识分享", "历史文化"];
-const MODES = ["对话剧情", "旁白解说"];
-const ASPECT_RATIOS = ["9:16", "16:9", "3:4", "4:3"];
-const ART_STYLES = ["写实", "国漫", "二次元", "油画", "赛博朋克", "电影质感"];
+const CONTENT_TYPES = ["短剧", "音乐MV", "知识分享", "历史文化"];
+const MODES = ["AI 策划", "对话剧情", "旁白解说"];
+const ASPECT_RATIOS = ["16:9", "9:16", "3:4", "4:3"];
+const ART_STYLES = ["电影质感", "写实", "国漫", "二次元", "赛博朋克"];
 
-const PLACEHOLDER = `例如：
-#画风要求#电影级写实风，冷色调。
-#角色要求#主角李天行，穿越到秦朝，落魄但机敏。
-#视频要求#12个分镜，约1分钟，包含台词和旁白。
-#场景要求#咸阳城门、秦王殿、秦宫长廊。
-#分镜内容#李天行看到扶苏寻师皇榜，进入秦王宫，与淳于越发生冲突，最后展现现代知识震惊众人。`;
+const PLACEHOLDER =
+  "例如：一个发生在未来海上城市的科幻故事，主角是一名记忆修复师，风格偏赛博朋克……";
 
 const DEMO_PROMPTS = {
   "秦朝穿越短剧": `#画风要求#电影级写实风，暖色调，秦朝历史背景。
@@ -57,23 +55,32 @@ const DEMO_PROJECTS = [
   {
     title: "秦朝穿越短剧",
     tags: "短剧 · 历史",
-    description: "现代青年穿越秦朝，卷入扶苏寻师与朝堂权谋。",
+    description:
+      "现代青年穿越秦朝，卷入扶苏寻师与朝堂权谋。",
     rating: "9.4",
-    coverGradient: "linear-gradient(135deg, #3b1d0f, #b45309, #111827)",
+    coverGradient:
+      "linear-gradient(135deg, #3b1d0f, #b45309, #111827)",
+    action: "inspire",
   },
   {
     title: "末日穹顶城市",
     tags: "短剧 · 科幻",
-    description: "人类最后的庇护所，穹顶之下的生存博弈。",
+    description:
+      "人类最后的庇护所，穹顶之下的生存博弈。",
     rating: "9.2",
-    coverGradient: "linear-gradient(135deg, #0f172a, #1e3a8a, #94a3b8)",
+    coverGradient:
+      "linear-gradient(135deg, #0f172a, #1e3a8a, #94a3b8)",
+    action: "demo",
   },
   {
     title: "文博青花瓷复原",
     tags: "纪录片 · 文博",
-    description: "AI 助力文物数字复原，重现千年工艺之美。",
+    description:
+      "AI 助力文物数字复原，重现千年工艺之美。",
     rating: "9.6",
-    coverGradient: "linear-gradient(135deg, #eff6ff, #1d4ed8, #0f172a)",
+    coverGradient:
+      "linear-gradient(135deg, #eff6ff, #1d4ed8, #0f172a)",
+    action: "demo",
   },
 ];
 
@@ -81,26 +88,30 @@ const FLOW_CARDS = [
   {
     icon: Lightbulb,
     title: "灵感策划",
-    desc: "输入故事灵感，AI 自动生成策划案、角色、场景和分镜。",
-    color: "from-amber-400 to-orange-500",
+    desc: "从灵感到完整策划案，AI 帮你梳理故事脉络",
+    color: "from-purple-400 to-violet-600",
+    bg: "rgba(139,92,246,0.10)",
   },
   {
     icon: Shapes,
     title: "主体一致性",
-    desc: "沉淀角色主体和场景主体，减少 AI 视频中的变脸、换装和场景漂移。",
-    color: "from-blue-400 to-indigo-500",
+    desc: "多模态角色建模，保持角色形象统一",
+    color: "from-blue-400 to-indigo-600",
+    bg: "rgba(59,130,246,0.10)",
   },
   {
     icon: Film,
     title: "分镜执行",
-    desc: "每个镜头都有图片提示词、视频提示词、状态和制作备注。",
-    color: "from-emerald-400 to-teal-500",
+    desc: "AI 生成分镜画面，镜头语言精准落地",
+    color: "from-emerald-400 to-teal-600",
+    bg: "rgba(16,185,129,0.10)",
   },
   {
     icon: Package,
     title: "交付导出",
-    desc: "一键导出制作包，交给出图、视频生成和剪辑人员使用。",
-    color: "from-purple-400 to-pink-500",
+    desc: "一键导出多种格式，满足团队制作需求",
+    color: "from-orange-400 to-amber-600",
+    bg: "rgba(251,146,60,0.10)",
   },
 ];
 
@@ -131,14 +142,15 @@ const CONFIG_ITEMS = [
     label: "分镜数量",
     icon: Grid3X3,
     options: [6, 12, 18, 24, 30],
-    displayMap: (v) => `${v}`,
+    displayMap: (v) => `${v} 镜`,
   },
   {
     key: "episodeCount",
     label: "剧集模式",
     icon: Tv,
     options: [1, 3, 5, 10],
-    displayMap: (v) => (v === 1 ? "单集" : `多集 (${v}集)`),
+    displayMap: (v) =>
+      v === 1 ? "单集短剧" : `多集 (${v}集)`,
   },
   {
     key: "artStyle",
@@ -159,7 +171,10 @@ const COVER_GRADIENTS = [
 ];
 
 function getCoverGradient(title) {
-  const sum = [...(title || "")].reduce((s, c) => s + c.charCodeAt(0), 0);
+  const sum = [...(title || "")].reduce(
+    (s, c) => s + c.charCodeAt(0),
+    0
+  );
   return COVER_GRADIENTS[sum % COVER_GRADIENTS.length];
 }
 
@@ -179,8 +194,12 @@ function ConfigDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2.5 w-full text-left rounded-2xl px-[18px] py-3 min-w-[150px] h-[58px] transition-all"
+        className="flex items-center gap-2.5 w-full text-left transition-all"
         style={{
+          minWidth: "150px",
+          height: "60px",
+          padding: "12px 18px",
+          borderRadius: "18px",
           background: "rgba(15,23,42,0.68)",
           border: "1px solid rgba(255,255,255,0.10)",
         }}
@@ -190,7 +209,7 @@ function ConfigDropdown({
           <div className="text-[10px] text-gray-500 leading-tight">
             {label}
           </div>
-          <div className="text-sm text-white truncate">
+          <div className="text-sm text-white truncate font-medium">
             {displayMap ? displayMap(value) : value}
           </div>
         </div>
@@ -250,12 +269,15 @@ function ConfigDropdown({
 }
 
 /* ---- Main Component ---- */
-export default function HomePageClient({ initialProjects, initialError }) {
+export default function HomePageClient({
+  initialProjects,
+  initialError,
+}) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
-  const [contentType, setContentType] = useState("短剧漫剧");
-  const [mode, setMode] = useState("对话剧情");
-  const [aspectRatio, setAspectRatio] = useState("9:16");
+  const [contentType, setContentType] = useState("短剧");
+  const [mode, setMode] = useState("AI 策划");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
   const [storyboardCount, setStoryboardCount] = useState(12);
   const [episodeCount, setEpisodeCount] = useState(1);
   const [artStyle, setArtStyle] = useState("电影质感");
@@ -263,9 +285,11 @@ export default function HomePageClient({ initialProjects, initialError }) {
   const [error, setError] = useState(initialError || "");
   const [projects, setProjects] = useState(initialProjects);
   const [showBossDemo, setShowBossDemo] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] =
+    useState(false);
   const [activeTab, setActiveTab] = useState("projects");
-  const [showDemoPopover, setShowDemoPopover] = useState(false);
+  const [showDemoPopover, setShowDemoPopover] =
+    useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   function getValue(key) {
@@ -315,7 +339,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "生成失败");
+      if (!res.ok)
+        throw new Error(json.error || "生成失败");
 
       if (json.data?.parseError) {
         setError("AI输出格式异常，请重试");
@@ -346,13 +371,16 @@ export default function HomePageClient({ initialProjects, initialError }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: demo.title,
-          type: demo.tags.includes("短剧") ? "AI短剧" : "文博视频",
+          type: demo.tags.includes("短剧")
+            ? "AI短剧"
+            : "文博视频",
           platform: "抖音",
           description: demo.description,
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "创建失败");
+      if (!res.ok)
+        throw new Error(json.error || "创建失败");
       router.push(`/projects/${json.data.id}`);
     } catch (err) {
       setError(err.message);
@@ -371,11 +399,14 @@ export default function HomePageClient({ initialProjects, initialError }) {
       return;
     }
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/projects/${projectId}`,
+        { method: "DELETE" }
+      );
       if (!res.ok) throw new Error("删除失败");
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setProjects((prev) =>
+        prev.filter((p) => p.id !== projectId)
+      );
       setDeletingId(null);
     } catch (err) {
       setError(err.message);
@@ -388,57 +419,121 @@ export default function HomePageClient({ initialProjects, initialError }) {
   return (
     <div className="h-full overflow-auto">
       {/* ============================================ */}
-      {/* HERO SECTION — dark gradient 560px            */}
+      {/* HERO SECTION — immersive dark gradient       */}
       {/* ============================================ */}
       <section
         className="relative overflow-hidden"
         style={{
           background:
-            "linear-gradient(180deg, #070b1f 0%, #11183a 50%, #2a1265 100%)",
+            "radial-gradient(circle at 20% 50%, rgba(99,102,241,0.35), transparent 35%), " +
+            "radial-gradient(circle at 80% 40%, rgba(168,85,247,0.35), transparent 35%), " +
+            "linear-gradient(135deg, #070b1f 0%, #11183a 50%, #23115a 100%)",
           minHeight: "560px",
         }}
       >
+        {/* Tech light beams */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute rounded-full opacity-30"
+            style={{
+              width: "600px",
+              height: "200px",
+              background:
+                "linear-gradient(90deg, rgba(99,102,241,0.5), transparent)",
+              top: "15%",
+              left: "-10%",
+              transform: "rotate(-12deg)",
+              filter: "blur(64px)",
+            }}
+          />
+          <div
+            className="absolute rounded-full opacity-30"
+            style={{
+              width: "500px",
+              height: "180px",
+              background:
+                "linear-gradient(90deg, rgba(139,92,246,0.5), transparent)",
+              top: "40%",
+              right: "-5%",
+              transform: "rotate(8deg)",
+              filter: "blur(64px)",
+            }}
+          />
+          <div
+            className="absolute rounded-full opacity-25"
+            style={{
+              width: "400px",
+              height: "140px",
+              background:
+                "linear-gradient(90deg, rgba(59,130,246,0.4), transparent)",
+              bottom: "10%",
+              left: "25%",
+              transform: "rotate(-6deg)",
+              filter: "blur(64px)",
+            }}
+          />
+        </div>
+
         {/* Decorative blur orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute top-[-60px] left-[-80px] w-[500px] h-[500px] rounded-full blur-3xl opacity-30"
-            style={{ background: "rgba(99,102,241,0.3)" }}
+            className="absolute top-[-60px] left-[-80px] w-[500px] h-[500px] rounded-full opacity-30"
+            style={{
+              background: "rgba(99,102,241,0.3)",
+              filter: "blur(80px)",
+            }}
           />
           <div
-            className="absolute bottom-[-80px] right-[-60px] w-[450px] h-[450px] rounded-full blur-3xl opacity-25"
-            style={{ background: "rgba(139,92,246,0.3)" }}
+            className="absolute bottom-[-80px] right-[-60px] w-[450px] h-[450px] rounded-full opacity-25"
+            style={{
+              background: "rgba(139,92,246,0.3)",
+              filter: "blur(80px)",
+            }}
           />
         </div>
 
         <div
-          className="relative mx-auto px-6 pt-16 pb-14"
-          style={{ maxWidth: "1100px" }}
+          className="relative mx-auto px-6"
+          style={{
+            maxWidth: "1180px",
+            paddingTop: "70px",
+          }}
         >
           {/* Title */}
           <h1
             className="text-center text-white leading-tight"
-            style={{ fontSize: "52px", fontWeight: 800 }}
+            style={{
+              fontSize: "56px",
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
           >
-            有什么新的故事灵感？
+            有什么新的故事灵感？ ✨
           </h1>
           <p
             className="text-center mt-4"
-            style={{ fontSize: "16px", color: "#cbd5e1" }}
+            style={{
+              fontSize: "17px",
+              color: "#cbd5e1",
+            }}
           >
             输入你的故事灵感、风格和分镜要求，AI
             将为你生成策划案、角色、场景和分镜
           </p>
 
-          {/* AI Console */}
+          {/* AI Console Panel */}
           <div
-            className="mx-auto mt-10 p-6"
+            className="mx-auto mt-8"
             style={{
-              maxWidth: "980px",
-              background: "rgba(15,23,42,0.58)",
-              border: "1px solid rgba(255,255,255,0.14)",
-              backdropFilter: "blur(20px)",
-              borderRadius: "24px",
-              boxShadow: "0 30px 80px rgba(0,0,0,0.35)",
+              width: "100%",
+              maxWidth: "1180px",
+              background: "rgba(15,23,42,0.52)",
+              border: "1px solid rgba(255,255,255,0.16)",
+              backdropFilter: "blur(24px)",
+              borderRadius: "28px",
+              boxShadow:
+                "0 30px 100px rgba(0,0,0,0.45)",
+              padding: "28px",
             }}
           >
             {/* Textarea */}
@@ -446,12 +541,36 @@ export default function HomePageClient({ initialProjects, initialError }) {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={PLACEHOLDER}
-              className="w-full bg-transparent border-none text-white text-[15px] leading-relaxed placeholder-[#94a3b8] focus:outline-none resize-none"
-              style={{ height: "140px" }}
+              className="w-full bg-transparent border-none text-white placeholder-[#94a3b8] focus:outline-none resize-none"
+              style={{
+                height: "145px",
+                fontSize: "16px",
+                lineHeight: "1.8",
+              }}
             />
 
+            {/* Helper row: buttons + char count */}
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all">
+                  <Upload size={13} />
+                  上传参考
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all">
+                  <Wand2 size={13} />
+                  AI 智能扩写
+                </button>
+              </div>
+              <span
+                className="text-xs"
+                style={{ color: "#64748b" }}
+              >
+                {prompt.length} / 2000
+              </span>
+            </div>
+
             {/* Config row */}
-            <div className="flex flex-wrap gap-3 mt-5">
+            <div className="flex flex-wrap gap-3 mt-4">
               {CONFIG_ITEMS.map((item) => (
                 <ConfigDropdown
                   key={item.key}
@@ -460,7 +579,9 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   value={getValue(item.key)}
                   options={item.options}
                   displayMap={item.displayMap}
-                  onChange={(val) => setValue(item.key, val)}
+                  onChange={(val) =>
+                    setValue(item.key, val)
+                  }
                 />
               ))}
             </div>
@@ -473,12 +594,14 @@ export default function HomePageClient({ initialProjects, initialError }) {
                 disabled={loading}
                 className="text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 style={{
-                  width: "320px",
-                  height: "56px",
+                  width: "360px",
+                  height: "60px",
                   background:
-                    "linear-gradient(90deg, #8b5cf6, #2563eb)",
-                  borderRadius: "18px",
-                  boxShadow: "0 18px 40px rgba(79,70,229,0.35)",
+                    "linear-gradient(90deg, #a855f7, #2563eb)",
+                  borderRadius: "20px",
+                  fontSize: "17px",
+                  boxShadow:
+                    "0 20px 50px rgba(79,70,229,0.45)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform =
@@ -508,10 +631,14 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   onClick={() =>
                     setShowDemoPopover(!showDemoPopover)
                   }
-                  className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-white/70 hover:text-white rounded-2xl transition-all"
+                  className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white rounded-[18px] transition-all"
                   style={{
-                    background: "rgba(15,23,42,0.50)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    height: "52px",
+                    padding: "0 20px",
+                    background:
+                      "rgba(15,23,42,0.50)",
+                    border:
+                      "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   <Play size={14} />
@@ -529,7 +656,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                     <div
                       className="absolute top-full left-0 mt-2 w-60 z-20 rounded-2xl overflow-hidden shadow-2xl"
                       style={{
-                        background: "rgba(15,23,42,0.98)",
+                        background:
+                          "rgba(15,23,42,0.98)",
                         border:
                           "1px solid rgba(255,255,255,0.10)",
                         backdropFilter: "blur(20px)",
@@ -539,7 +667,9 @@ export default function HomePageClient({ initialProjects, initialError }) {
                         <button
                           key={demo.title}
                           onClick={() => {
-                            setShowDemoPopover(false);
+                            setShowDemoPopover(
+                              false
+                            );
                             handleCreateDemo(demo);
                           }}
                           className="w-full text-left px-4 py-3 hover:bg-white/[0.05] transition-all flex items-center gap-3"
@@ -568,11 +698,17 @@ export default function HomePageClient({ initialProjects, initialError }) {
 
               {/* Secondary: New Project */}
               <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-white/70 hover:text-white rounded-2xl transition-all"
+                onClick={() =>
+                  setShowCreateModal(true)
+                }
+                className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white rounded-[18px] transition-all"
                 style={{
-                  background: "rgba(15,23,42,0.50)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  height: "52px",
+                  padding: "0 20px",
+                  background:
+                    "rgba(15,23,42,0.50)",
+                  border:
+                    "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <Plus size={14} />
@@ -587,7 +723,9 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   </span>
                 )}
                 <button
-                  onClick={() => setShowBossDemo(true)}
+                  onClick={() =>
+                    setShowBossDemo(true)
+                  }
                   className="text-gray-500 text-xs hover:text-white transition-colors underline underline-offset-2"
                 >
                   老板演示说明
@@ -603,8 +741,11 @@ export default function HomePageClient({ initialProjects, initialError }) {
       {/* ============================================ */}
       <div style={{ background: "#f6f7fb" }}>
         <div
-          className="mx-auto px-6"
-          style={{ maxWidth: "1200px" }}
+          className="mx-auto"
+          style={{
+            maxWidth: "1480px",
+            padding: "0 48px 80px",
+          }}
         >
           {/* ===== Capability Cards (floating up) ===== */}
           <div
@@ -614,90 +755,120 @@ export default function HomePageClient({ initialProjects, initialError }) {
             {FLOW_CARDS.map((card) => (
               <div
                 key={card.title}
-                className="bg-white p-7 transition-all"
+                className="flex items-center gap-[18px] transition-all hover:shadow-lg"
                 style={{
-                  borderRadius: "22px",
+                  background: "white",
+                  borderRadius: "24px",
                   boxShadow:
-                    "0 20px 50px rgba(15,23,42,0.08)",
-                  border: "1px solid rgba(15,23,42,0.04)",
+                    "0 20px 60px rgba(15,23,42,0.10)",
+                  padding: "28px",
+                  height: "120px",
                 }}
               >
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 shadow-md`}
-                  style={{ width: "48px", height: "48px" }}
+                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shrink-0 shadow-md`}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                  }}
                 >
                   <card.icon
-                    size={20}
+                    size={22}
                     className="text-white"
                   />
                 </div>
-                <h3
-                  className="mb-2"
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 700,
-                    color: "#0f172a",
-                  }}
-                >
-                  {card.title}
-                </h3>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {card.desc}
-                </p>
+                <div className="min-w-0">
+                  <h3
+                    className="mb-1"
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
+                    {card.title}
+                  </h3>
+                  <p
+                    className="line-clamp-2"
+                    style={{
+                      fontSize: "13px",
+                      color: "#64748b",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {card.desc}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
 
           {/* ===== Tabs ===== */}
-          <div className="flex items-center gap-8 pt-12 pb-6">
+          <div className="flex items-center justify-between pt-12 pb-6">
+            <div className="flex items-center gap-8">
+              <button
+                onClick={() =>
+                  setActiveTab("inspiration")
+                }
+                className="relative pb-2 text-lg font-semibold transition-all"
+                style={{
+                  color: demoTabActive
+                    ? "#0f172a"
+                    : "#94a3b8",
+                }}
+              >
+                灵感广场
+                {demoTabActive && (
+                  <span
+                    className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
+                    style={{
+                      height: "3px",
+                      background:
+                        "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                    }}
+                  />
+                )}
+              </button>
+              <button
+                onClick={() =>
+                  setActiveTab("projects")
+                }
+                className="relative pb-2 text-lg font-semibold transition-all"
+                style={{
+                  color: !demoTabActive
+                    ? "#0f172a"
+                    : "#94a3b8",
+                }}
+              >
+                我的项目
+                {projects.length > 0 && (
+                  <span className="ml-1.5 text-sm text-gray-400">
+                    {projects.length}
+                  </span>
+                )}
+                {!demoTabActive && (
+                  <span
+                    className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
+                    style={{
+                      height: "3px",
+                      background:
+                        "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                    }}
+                  />
+                )}
+              </button>
+            </div>
             <button
-              onClick={() => setActiveTab("inspiration")}
-              className="relative pb-2 text-lg font-semibold transition-all"
-              style={{
-                color: demoTabActive ? "#0f172a" : "#94a3b8",
-              }}
+              className="text-sm text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+              onClick={() =>
+                setActiveTab("projects")
+              }
             >
-              灵感广场
-              {demoTabActive && (
-                <span
-                  className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
-                  style={{
-                    height: "3px",
-                    background:
-                      "linear-gradient(90deg, #6366f1, #8b5cf6)",
-                  }}
-                />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab("projects")}
-              className="relative pb-2 text-lg font-semibold transition-all"
-              style={{
-                color: !demoTabActive ? "#0f172a" : "#94a3b8",
-              }}
-            >
-              我的项目
-              {projects.length > 0 && (
-                <span className="ml-1.5 text-sm text-gray-400">
-                  {projects.length}
-                </span>
-              )}
-              {!demoTabActive && (
-                <span
-                  className="absolute bottom-0 left-0 right-0 mx-auto rounded-full"
-                  style={{
-                    height: "3px",
-                    background:
-                      "linear-gradient(90deg, #6366f1, #8b5cf6)",
-                  }}
-                />
-              )}
+              查看全部
+              <ChevronDown
+                size={14}
+                style={{ transform: "rotate(-90deg)" }}
+              />
             </button>
           </div>
 
@@ -707,12 +878,12 @@ export default function HomePageClient({ initialProjects, initialError }) {
               {DEMO_PROJECTS.map((demo) => (
                 <div
                   key={demo.title}
-                  className="bg-white overflow-hidden transition-all hover:shadow-lg"
+                  className="bg-white overflow-hidden transition-all hover:shadow-xl"
                   style={{
                     borderRadius: "24px",
                     boxShadow:
-                      "0 8px 30px rgba(15,23,42,0.06)",
-                    height: "300px",
+                      "0 18px 50px rgba(15,23,42,0.10)",
+                    height: "320px",
                     display: "flex",
                     flexDirection: "column",
                   }}
@@ -721,7 +892,7 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   <div
                     className="relative shrink-0"
                     style={{
-                      height: "170px",
+                      height: "180px",
                       background: demo.coverGradient,
                     }}
                   >
@@ -744,14 +915,16 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 p-4 flex flex-col justify-between">
+                  <div className="flex-1 p-5 flex flex-col justify-between">
                     <div>
                       <h3 className="font-bold text-[#0f172a] text-base mb-1">
                         {demo.title}
                       </h3>
                       <p
                         className="text-sm leading-relaxed line-clamp-2"
-                        style={{ color: "#64748b" }}
+                        style={{
+                          color: "#64748b",
+                        }}
                       >
                         {demo.description}
                       </p>
@@ -766,22 +939,39 @@ export default function HomePageClient({ initialProjects, initialError }) {
                           {demo.rating}
                         </span>
                       </div>
-                      <button
-                        onClick={() =>
-                          handleUseInspiration(
-                            demo.title
-                          )
-                        }
-                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all"
-                        style={{
-                          background:
-                            "linear-gradient(90deg, #8b5cf6, #2563eb)",
-                          color: "white",
-                        }}
-                      >
-                        使用这个灵感
-                        <Play size={12} />
-                      </button>
+                      {demo.action === "inspire" ? (
+                        <button
+                          onClick={() =>
+                            handleUseInspiration(
+                              demo.title
+                            )
+                          }
+                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all hover:opacity-90"
+                          style={{
+                            background:
+                              "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                            color: "white",
+                          }}
+                        >
+                          使用这个灵感
+                          <Play size={12} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handleCreateDemo(demo)
+                          }
+                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl transition-all hover:opacity-90"
+                          style={{
+                            background:
+                              "linear-gradient(90deg, #8b5cf6, #2563eb)",
+                            color: "white",
+                          }}
+                        >
+                          进入项目
+                          <Play size={12} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -797,7 +987,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
                     style={{
-                      background: "rgba(15,23,42,0.04)",
+                      background:
+                        "rgba(15,23,42,0.04)",
                     }}
                   >
                     <Film size={24} color="#94a3b8" />
@@ -812,7 +1003,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                     className="text-xs"
                     style={{ color: "#94a3b8" }}
                   >
-                    在上方输入灵感，AI 将自动创建第一个项目
+                    在上方输入灵感，AI
+                    将自动创建第一个项目
                   </p>
                 </div>
               ) : (
@@ -820,16 +1012,16 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   {projects.map((p) => (
                     <div
                       key={p.id}
-                      className="bg-white overflow-hidden transition-all hover:shadow-lg group"
+                      className="bg-white overflow-hidden transition-all hover:shadow-xl group"
                       style={{
                         borderRadius: "24px",
                         boxShadow:
-                          "0 8px 30px rgba(15,23,42,0.06)",
+                          "0 18px 50px rgba(15,23,42,0.10)",
                       }}
                     >
                       {/* Cover */}
                       <div
-                        className="h-32 relative overflow-hidden"
+                        className="h-40 relative overflow-hidden"
                         style={{
                           background:
                             getCoverGradient(p.title),
@@ -845,7 +1037,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                               color: "white",
                               border:
                                 "1px solid rgba(255,255,255,0.15)",
-                              backdropFilter: "blur(8px)",
+                              backdropFilter:
+                                "blur(8px)",
                             }}
                           >
                             {p.status || "策划中"}
@@ -854,14 +1047,16 @@ export default function HomePageClient({ initialProjects, initialError }) {
                       </div>
 
                       {/* Info */}
-                      <div className="p-4">
+                      <div className="p-5">
                         <h3 className="font-semibold text-[#0f172a] text-sm mb-1.5 truncate">
                           {p.title}
                         </h3>
                         {p.description && (
                           <p
                             className="text-xs line-clamp-2 mb-3 leading-relaxed"
-                            style={{ color: "#64748b" }}
+                            style={{
+                              color: "#64748b",
+                            }}
                           >
                             {p.description}
                           </p>
@@ -874,7 +1069,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                                 style={{
                                   background:
                                     "rgba(99,102,241,0.08)",
-                                  color: "#6366f1",
+                                  color:
+                                    "#6366f1",
                                 }}
                               >
                                 {p.type}
@@ -886,7 +1082,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
                                 style={{
                                   background:
                                     "rgba(15,23,42,0.04)",
-                                  color: "#64748b",
+                                  color:
+                                    "#64748b",
                                 }}
                               >
                                 {p.platform}
@@ -895,23 +1092,27 @@ export default function HomePageClient({ initialProjects, initialError }) {
                           </div>
                           <span
                             className="text-[10px]"
-                            style={{ color: "#94a3b8" }}
+                            style={{
+                              color: "#94a3b8",
+                            }}
                           >
                             {new Date(
                               p.created_at
-                            ).toLocaleDateString("zh-CN")}
+                            ).toLocaleDateString(
+                              "zh-CN"
+                            )}
                           </span>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
                           <button
                             onClick={() =>
                               router.push(
                                 `/projects/${p.id}`
                               )
                             }
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-all"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium rounded-xl transition-all hover:opacity-90"
                             style={{
                               background:
                                 "linear-gradient(90deg, #8b5cf6, #2563eb)",
@@ -919,13 +1120,17 @@ export default function HomePageClient({ initialProjects, initialError }) {
                             }}
                           >
                             进入项目
-                            <ExternalLink size={12} />
+                            <ExternalLink
+                              size={12}
+                            />
                           </button>
                           <button
                             onClick={() =>
-                              handleDeleteProject(p.id)
+                              handleDeleteProject(
+                                p.id
+                              )
                             }
-                            className={`py-2 px-3 text-xs font-medium rounded-xl transition-all ${
+                            className={`py-2.5 px-3 text-xs font-medium rounded-xl transition-all ${
                               deletingId === p.id
                                 ? "bg-red-500 text-white"
                                 : "text-gray-400 hover:text-red-500 hover:bg-red-50"
@@ -959,7 +1164,8 @@ export default function HomePageClient({ initialProjects, initialError }) {
             className="relative p-8 w-full max-w-lg mx-4 max-h-[80vh] overflow-auto shadow-2xl"
             style={{
               background: "#111128",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border:
+                "1px solid rgba(255,255,255,0.08)",
               borderRadius: "24px",
             }}
           >
@@ -1000,7 +1206,10 @@ export default function HomePageClient({ initialProjects, initialError }) {
                   desc: "一键导出完整制作包（Markdown），包含策划案、角色设定、场景设定、分镜表、提示词汇总、制作注意事项，直接交给出图、视频生成和剪辑人员。",
                 },
               ].map((item) => (
-                <div key={item.num} className="flex gap-4">
+                <div
+                  key={item.num}
+                  className="flex gap-4"
+                >
                   <div
                     className="w-8 h-8 rounded-full text-white flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
                     style={{
