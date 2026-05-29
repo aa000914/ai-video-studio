@@ -188,9 +188,23 @@ export default function ProjectDetailPage() {
         {activeTab === "plan" && <PlanPanel projectId={projectId} onStatsChange={loadStats} />}
         {activeTab === "subjects" && (
           <div className="p-6 space-y-8">
-            <CharacterPanel projectId={projectId} />
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">👤</span>
+                <h2 className="text-base font-semibold text-gray-900">角色主体</h2>
+                <span className="text-xs text-gray-400">({stats.characters})</span>
+              </div>
+              <CharacterPanel projectId={projectId} />
+            </div>
             <hr className="border-gray-200" />
-            <ScenePanel projectId={projectId} />
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🏛</span>
+                <h2 className="text-base font-semibold text-gray-900">场景主体</h2>
+                <span className="text-xs text-gray-400">({stats.scenes})</span>
+              </div>
+              <ScenePanel projectId={projectId} />
+            </div>
           </div>
         )}
         {activeTab === "storyboard" && <ShotPanel projectId={projectId} />}

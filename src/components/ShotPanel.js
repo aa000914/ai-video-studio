@@ -32,9 +32,7 @@ export default function ShotPanel({ projectId }) {
   const [showAdd, setShowAdd] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadShots();
-  }, [projectId]);
+  useEffect(() => { loadShots(); }, [projectId]);
 
   async function loadShots() {
     setLoading(true);
@@ -42,172 +40,131 @@ export default function ShotPanel({ projectId }) {
       const res = await fetch(`/api/shots?project_id=${projectId}`);
       const json = await res.json();
       if (res.ok) setShots(json.data || []);
-    } catch (err) {
-      setMessage("加载失败: " + err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setMessage("加载失败: " + err.message); }
+    finally { setLoading(false); }
   }
 
   async function handleGenerate() {
-    setGenerating(true);
-    setMessage("");
+    setGenerating(true); setMessage("");
     try {
-      const res = await fetch("/api/generate-shots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
-      });
+      const res = await fetch("/api/generate-shots", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "生成失败");
       setMessage(json.message || "生成成功");
       await loadShots();
-    } catch (err) {
-      setMessage("错误: " + err.message);
-    } finally {
-      setGenerating(false);
-    }
+    } catch (err) { setMessage("错误: " + err.message); }
+    finally { setGenerating(false); }
   }
 
   async function handleSave(data) {
     if (editItem) {
-      const res = await fetch(`/api/shots/${editItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "保存失败");
+      await fetch(`/api/shots/${editItem.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     } else {
-      const res = await fetch("/api/shots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, project_id: projectId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "创建失败");
+      await fetch("/api/shots", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, project_id: projectId }) });
     }
     await loadShots();
   }
 
   async function handleDelete(id) {
     if (!confirm("确定要删除这个分镜吗？")) return;
-    try {
-      await fetch(`/api/shots/${id}`, { method: "DELETE" });
-      await loadShots();
-    } catch (err) {
-      setMessage("删除失败: " + err.message);
-    }
+    try { await fetch(`/api/shots/${id}`, { method: "DELETE" }); await loadShots(); }
+    catch (err) { setMessage("删除失败: " + err.message); }
   }
 
-  if (loading) {
-    return <div className="text-sm text-gray-500 py-8 text-center">加载中...</div>;
-  }
+  const imageCount = shots.filter(s => s.image_url).length;
+  const videoCount = shots.filter(s => s.video_url).length;
+
+  if (loading) return <div className="text-sm text-gray-500 py-12 text-center">加载中...</div>;
 
   return (
-    <div className="space-y-4">
-      {message && (
-        <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm">
-          {message}
-        </div>
-      )}
+    <div className="space-y-4 max-w-full">
+      {message && <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm">{message}</div>}
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => {
-            setEditItem(null);
-            setShowAdd(true);
-          }}
-          className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50"
-        >
-          手动添加分镜
-        </button>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
-        >
-          {generating ? "AI生成中..." : "AI生成分镜表"}
-        </button>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-2">
+          <button onClick={() => { setEditItem(null); setShowAdd(true); }}
+            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            + 手动添加分镜
+          </button>
+          <button onClick={handleGenerate} disabled={generating}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm">
+            {generating ? "AI 生成中..." : "AI 生成分镜表"}
+          </button>
+        </div>
+        {shots.length > 0 && (
+          <span className="text-xs text-gray-400">
+            共 {shots.length} 镜 · 🖼 {imageCount} · 🎬 {videoCount}
+          </span>
+        )}
       </div>
 
       {shots.length === 0 ? (
-        <div className="text-sm text-gray-400 py-8 text-center">
-          暂无分镜数据，请手动添加或使用AI生成
+        <div className="text-center py-16 bg-white border rounded-xl">
+          <div className="text-4xl mb-3">📜</div>
+          <p className="text-sm text-gray-500">暂无分镜数据</p>
+          <p className="text-xs text-gray-400 mt-1">点击"AI 生成分镜表"或手动添加</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+        <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-100 text-left">
-                <th className="p-2 border text-xs w-10">#</th>
-                <th className="p-2 border text-xs w-12">时长</th>
-                <th className="p-2 border text-xs">场景</th>
-                <th className="p-2 border text-xs">人物</th>
-                <th className="p-2 border text-xs">画面</th>
-                <th className="p-2 border text-xs">运镜</th>
-                <th className="p-2 border text-xs">台词</th>
-                <th className="p-2 border text-xs w-16">状态</th>
-                <th className="p-2 border text-xs w-16">操作</th>
+              <tr className="bg-gray-50 text-left border-b">
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500 w-12 text-center">#</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">场景</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">角色</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">时长</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">画面描述</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">运镜</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500">台词</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500 w-20">状态</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-500 w-16">操作</th>
               </tr>
             </thead>
             <tbody>
-              {shots.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="p-2 border text-gray-500 text-center">{s.shot_number}</td>
-                  <td className="p-2 border text-xs text-center">{s.duration}</td>
-                  <td className="p-2 border text-xs">{s.scene_name}</td>
-                  <td className="p-2 border text-xs">{s.characters}</td>
-                  <td className="p-2 border text-xs max-w-[200px] truncate" title={s.visual}>
-                    {s.visual}
+              {shots.map((s, idx) => {
+                const rowBg = idx % 2 === 0 ? "" : "bg-gray-50/50";
+                const leftBorder = s.status === "已通过" ? "border-l-2 border-l-green-400" :
+                  s.status === "需重做" ? "border-l-2 border-l-red-400" : "";
+                return (
+                <tr key={s.id} className={`${rowBg} ${leftBorder} hover:bg-blue-50/50 transition-colors`}>
+                  <td className="px-3 py-2.5 text-center">
+                    <span className="text-xs font-bold text-gray-500">#{s.shot_number}</span>
+                    {(s.image_url || s.video_url) && (
+                      <div className="flex justify-center gap-0.5 mt-0.5">
+                        {s.image_url && <span className="text-[10px]" title="有图">🖼</span>}
+                        {s.video_url && <span className="text-[10px]" title="有视频">🎬</span>}
+                      </div>
+                    )}
                   </td>
-                  <td className="p-2 border text-xs">{s.camera}</td>
-                  <td className="p-2 border text-xs max-w-[150px] truncate" title={s.dialogue}>
-                    {s.dialogue || "—"}
-                  </td>
-                  <td className="p-2 border">
-                    <span
-                      className={"text-xs px-2 py-0.5 rounded font-medium " +
-                        (STATUS_STYLES[s.status] || "bg-gray-100 text-gray-600")}
-                    >
+                  <td className="px-3 py-2.5 text-xs text-gray-700 max-w-[120px] truncate" title={s.scene_name}>{s.scene_name || "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700 max-w-[100px] truncate" title={s.characters}>{s.characters || "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{s.duration || "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate" title={s.visual}>{s.visual || "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-700">{s.camera || "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[140px] truncate" title={s.dialogue}>{s.dialogue || "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${STATUS_STYLES[s.status] || "bg-gray-100 text-gray-600"}`}>
                       {s.status || "待生成"}
                     </span>
                   </td>
-                  <td className="p-2 border">
-                    <button
-                      onClick={() => {
-                        setEditItem(s);
-                        setShowAdd(true);
-                      }}
-                      className="text-blue-600 text-xs hover:underline mr-2"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="text-red-600 text-xs hover:underline"
-                    >
-                      删除
-                    </button>
+                  <td className="px-3 py-2.5">
+                    <div className="flex gap-0.5">
+                      <button onClick={() => { setEditItem(s); setShowAdd(true); }}
+                        className="text-blue-600 text-xs hover:bg-blue-50 px-2 py-1 rounded transition-colors">编辑</button>
+                      <button onClick={() => handleDelete(s.id)}
+                        className="text-red-500 text-xs hover:bg-red-50 px-2 py-1 rounded transition-colors">删</button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
       )}
 
       {showAdd && (
-        <EditModal
-          title={editItem ? "编辑分镜" : "添加分镜"}
-          fields={FIELDS}
-          initialData={editItem}
-          onClose={() => {
-            setShowAdd(false);
-            setEditItem(null);
-          }}
-          onSave={handleSave}
-        />
+        <EditModal title={editItem ? "编辑分镜" : "添加分镜"} fields={FIELDS}
+          initialData={editItem} onClose={() => { setShowAdd(false); setEditItem(null); }} onSave={handleSave} />
       )}
     </div>
   );

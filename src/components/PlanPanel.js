@@ -53,18 +53,25 @@ export default function PlanPanel({ projectId, onStatsChange }) {
   }
 
   async function handleRegenerate() {
+    if (!plan) return;
     setRegenerating(true);
     setError("");
     try {
-      const res = await fetch("/api/auto-generate", {
+      const res = await fetch("/api/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: plan?.summary || "", content_type: plan?.content_type }),
+        body: JSON.stringify({
+          action: "edit",
+          project_id: projectId,
+          request: `请根据以下剧本摘要重新生成完整策划案，保持内容类型和风格，但重新细化所有细节：\n\n${plan.script_text || plan.summary || ""}`,
+          current_plan: plan,
+        }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "生成失败");
-      await loadPlan();
-      if (onStatsChange) onStatsChange();
+      if (!res.ok) throw new Error(json.error || "重新生成失败");
+      if (json.data?.plan) {
+        setEditedPlan(json.data.plan);
+      }
     } catch (err) { setError("重新生成失败: " + err.message); }
     finally { setRegenerating(false); }
   }
