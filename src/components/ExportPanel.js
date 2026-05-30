@@ -8,21 +8,23 @@ export default function ExportPanel({ project, projectId }) {
   const [scenes, setScenes] = useState([]);
   const [shots, setShots] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [copied, setCopied] = useState("");
 
   useEffect(() => { loadData(); }, [projectId]);
 
   async function loadData() {
     try {
-      const [planRes, charRes, sceneRes, shotRes, tasksRes] = await Promise.all([
+      const [planRes, charRes, sceneRes, shotRes, tasksRes, assetsRes] = await Promise.all([
         fetch(`/api/plans?project_id=${projectId}`),
         fetch(`/api/characters?project_id=${projectId}`),
         fetch(`/api/scenes?project_id=${projectId}`),
         fetch(`/api/shots?project_id=${projectId}`),
         fetch(`/api/tasks?project_id=${projectId}&limit=500`),
+        fetch(`/api/generated-assets?project_id=${projectId}`),
       ]);
-      const [p, c, s, sh, t] = await Promise.all([
-        planRes.json(), charRes.json(), sceneRes.json(), shotRes.json(), tasksRes.json(),
+      const [p, c, s, sh, t, a] = await Promise.all([
+        planRes.json(), charRes.json(), sceneRes.json(), shotRes.json(), tasksRes.json(), assetsRes.json(),
       ]);
       setPlan(p.data || null);
       setCharacters(c.data || []);
@@ -30,6 +32,7 @@ export default function ExportPanel({ project, projectId }) {
       const sortedShots = (sh.data || []).sort((a, b) => (a.shot_number || 0) - (b.shot_number || 0));
       setShots(sortedShots);
       setTasks(t.data || []);
+      setAssets(a.data || []);
     } catch { /* ignore */ }
   }
 
@@ -42,11 +45,15 @@ export default function ExportPanel({ project, projectId }) {
     }
   });
 
-  // Stats helpers
+  // Stats helpers (use generated_assets for accurate counts)
+  const imageAssets = assets.filter((a) => (a.type || "").includes("image"));
+  const videoAssets = assets.filter((a) => (a.type || "").includes("video") || a.type === "video");
+  const selectedImages = shots.filter((s) => s.selected_image_asset_id || s.selected_image_url).length;
+  const finalVideos = shots.filter((s) => s.final_video_asset_id || s.selected_video_url).length;
   const approved = shots.filter((s) => s.status === "已通过").length;
   const pending = shots.filter((s) => !s.status || s.status === "待生成").length;
-  const imageDone = shots.filter((s) => s.status === "已生成图").length;
-  const videoDone = shots.filter((s) => s.status === "已生成视频").length;
+  const imageDone = imageAssets.length;
+  const videoDone = videoAssets.length;
   const redo = shots.filter((s) => s.status === "需重做").length;
   const completionPct = shots.length > 0 ? Math.round((approved / shots.length) * 100) : 0;
 
@@ -315,15 +322,17 @@ export default function ExportPanel({ project, projectId }) {
       {shots.length > 0 && (
         <div className="bg-white border rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">生产总览</h3>
-          <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <MiniStat label="分镜" value={shots.length} />
-            <MiniStat label="待生成" value={pending} color="text-gray-500" />
             <MiniStat label="已生成图" value={imageDone} color="text-blue-600" />
             <MiniStat label="已生成视频" value={videoDone} color="text-purple-600" />
+            <MiniStat label="Selected 图" value={selectedImages} color="text-blue-600" />
+            <MiniStat label="Final 视频" value={finalVideos} color="text-purple-600" />
+            <MiniStat label="待生成" value={pending} color="text-gray-500" />
             <MiniStat label="需重做" value={redo} color="text-red-600" />
             <MiniStat label="已通过" value={approved} color="text-green-600" />
-            <MiniStat label="完成度" value={`${completionPct}%`} color="text-blue-600" />
             <MiniStat label="任务成功" value={`${succeededTasks}/${tasks.length}`} color="text-green-600" />
+            <MiniStat label="完成度" value={`${completionPct}%`} color="text-blue-600" />
           </div>
           {failedTasks > 0 && (
             <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">

@@ -20,6 +20,7 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
   const [polishingVideo, setPolishingVideo] = useState(false);
   const [message, setMessage] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [viewMode, setViewMode] = useState("detail"); // detail | generate
   const pollingRef = useRef(null);
@@ -76,16 +77,22 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
 
   async function loadAssets() {
     try {
-      const res = await fetch(`/api/tasks?project_id=${projectId}&limit=200`);
-      const json = await res.json();
-      if (res.ok) {
-        const shotTasks = (json.data || []).filter((t) => t.shot_id === shot.id);
-        setTasks(shotTasks);
+      const [tasksRes, assetsRes] = await Promise.all([
+        fetch(`/api/tasks?project_id=${projectId}&limit=500`),
+        fetch(`/api/generated-assets?project_id=${projectId}`),
+      ]);
+      const tasksJson = await tasksRes.json();
+      const assetsJson = await assetsRes.json();
 
-        // Start polling for running tasks
-        const running = shotTasks.filter((t) => t.status === "running" || t.status === "pending");
-        if (running.length > 0) startPolling(running);
-      }
+      const shotTasks = (tasksJson.data || []).filter((t) => t.shot_id === shot.id);
+      setTasks(shotTasks);
+
+      const projectAssets = assetsJson.data || [];
+      setAssets(projectAssets.filter((a) => a.shot_id === shot.id));
+
+      // Start polling for running tasks
+      const running = shotTasks.filter((t) => t.status === "running" || t.status === "pending");
+      if (running.length > 0) startPolling(running);
     } catch { /* ignore */ }
   }
 
@@ -196,16 +203,43 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
   }
 
   async function handleSelectAsset(asset) {
-    const urlField = asset.type === "image" ? "selected_image_url" : "selected_video_url";
-    update(urlField, asset.url);
-    // Mark asset as selected in DB
+    const isImage = (asset.type || "").includes("image");
+    const assetIdField = isImage ? "selected_image_asset_id" : "selected_video_asset_id";
+    const urlField = isImage ? "selected_image_url" : "selected_video_url";
+
+    // 1. Update shot: set selected_image_asset_id + selected_image_url
+    try {
+      await fetch(`/api/shots/${shot.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [assetIdField]: asset.id, [urlField]: asset.url }),
+      });
+    } catch { /* ignore */ }
+
+    // 2. Mark this asset as selected
     try {
       await fetch(`/api/generated-assets/${asset.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_selected: true }),
+        body: JSON.stringify({ is_selected: isImage, is_final: !isImage }),
       });
     } catch { /* ignore */ }
-    showMessage(`已选为${asset.type === "image" ? "首帧图" : "最终视频"}`, "success");
+
+    // 3. Unselect other assets of same type for this shot
+    try {
+      const res = await fetch(`/api/generated-assets?project_id=${projectId}`);
+      const json = await res.json();
+      const sameType = (json.data || []).filter((a) => a.shot_id === shot.id && a.type === asset.type && a.id !== asset.id);
+      for (const a of sameType) {
+        await fetch(`/api/generated-assets/${a.id}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_selected: isImage ? false : a.is_selected, is_final: !isImage ? false : a.is_final }),
+        });
+      }
+    } catch { /* ignore */ }
+
+    update(urlField, asset.url);
+    update(assetIdField, asset.id);
+    loadAssets();
+    showMessage(`已选为${isImage ? "首帧图" : "Final 视频"}`, "success");
   }
 
   function copyText(text) {
@@ -213,8 +247,9 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
     catch { /* ignore */ }
   }
 
-  const imageAssets = tasks.filter((t) => t.type === "image" && t.status === "succeeded" && t.result_url);
-  const videoAssets = tasks.filter((t) => (t.type === "i2v" || t.type === "t2v") && t.status === "succeeded" && t.result_url);
+  // Candidates from generated_assets (data source of truth)
+  const imageAssets = assets.filter((a) => (a.type || "").includes("image"));
+  const videoAssets = assets.filter((a) => (a.type || "").includes("video") || a.type === "video");
   const runningTasks = tasks.filter((t) => t.status === "running" || t.status === "pending");
 
   return (
@@ -325,14 +360,14 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
               <div className="mb-4">
                 <h4 className="text-xs font-medium text-gray-500 mb-2">图片候选 ({imageAssets.length})</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {imageAssets.map((t) => (
-                    <div key={t.id} className={`border-2 rounded-lg overflow-hidden cursor-pointer transition-all ${
-                      t.result_url === form.selected_image_url ? "border-blue-500 shadow-md" : "border-gray-200 hover:border-gray-300"
-                    }`} onClick={() => handleSelectAsset({ id: t.id, type: "image", url: t.result_url })}>
-                      <img src={t.result_url} alt="" className="w-full h-32 object-cover" />
+                  {imageAssets.map((a) => (
+                    <div key={a.id} className={`border-2 rounded-lg overflow-hidden cursor-pointer transition-all ${
+                      (a.id === shot.selected_image_asset_id || a.is_selected) ? "border-blue-500 shadow-md" : "border-gray-200 hover:border-gray-300"
+                    }`} onClick={() => handleSelectAsset({ id: a.id, type: a.type, url: a.url })}>
+                      <img src={a.url} alt="" className="w-full h-32 object-cover" />
                       <div className="p-1.5 text-[10px] text-gray-500 flex items-center justify-between">
-                        <span>{t.model || "—"}</span>
-                        {t.result_url === form.selected_image_url && <span className="text-blue-500 font-medium">已选中</span>}
+                        <span>{a.model || a.provider || "—"}</span>
+                        {(a.id === shot.selected_image_asset_id || a.is_selected) && <span className="text-blue-500 font-medium">已选中</span>}
                       </div>
                     </div>
                   ))}
@@ -344,14 +379,14 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
               <div>
                 <h4 className="text-xs font-medium text-gray-500 mb-2">视频候选 ({videoAssets.length})</h4>
                 <div className="space-y-2">
-                  {videoAssets.map((t) => (
-                    <div key={t.id} className={`border-2 rounded-lg p-2 cursor-pointer transition-all ${
-                      t.result_url === form.selected_video_url ? "border-purple-500 shadow-md" : "border-gray-200 hover:border-gray-300"
-                    }`} onClick={() => handleSelectAsset({ id: t.id, type: "video", url: t.result_url })}>
-                      <video src={t.result_url} controls className="w-full h-32 object-cover rounded mb-1" />
+                  {videoAssets.map((a) => (
+                    <div key={a.id} className={`border-2 rounded-lg p-2 cursor-pointer transition-all ${
+                      (a.id === shot.final_video_asset_id || a.is_final) ? "border-purple-500 shadow-md" : "border-gray-200 hover:border-gray-300"
+                    }`} onClick={() => handleSelectAsset({ id: a.id, type: a.type, url: a.url })}>
+                      <video src={a.url} controls className="w-full h-32 object-cover rounded mb-1" />
                       <div className="text-[10px] text-gray-500 flex items-center justify-between">
-                        <span>{t.model || "—"} · {t.created_at ? new Date(t.created_at).toLocaleString("zh-CN") : ""}</span>
-                        {t.result_url === form.selected_video_url && <span className="text-purple-500 font-medium">已选中</span>}
+                        <span>{a.model || a.provider || "—"} · {a.created_at ? new Date(a.created_at).toLocaleString("zh-CN") : ""}</span>
+                        {(a.id === shot.final_video_asset_id || a.is_final) && <span className="text-purple-500 font-medium">Final</span>}
                       </div>
                     </div>
                   ))}
