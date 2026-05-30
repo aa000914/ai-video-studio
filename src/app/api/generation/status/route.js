@@ -4,180 +4,81 @@ import { queryTask } from "@/lib/dashscope";
 /**
  * GET /api/generation/status?id=xxx
  *
- * 查询 generation_tasks 状态。
- * 如果任务未完成，调用 DashScope 查询异步任务状态。
- *
- * 成功时：更新 DB result_url + 写入 generated_assets（仅当 resultUrl 存在时）。
- * 失败时：更新 DB error_message。
- * 进行中：不更新 DB，让前端继续轮询。
- *
- * Query:
- *   id: string (generation_tasks 的 UUID)
- *
- * 返回:
- *   { success: true, status, resultUrl, error, raw }
+ * 查询任务状态。完成任务后自动保存资产到 generated_assets 并更新关联分镜。
  */
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-
-    if (!id) {
-      return Response.json({ error: "缺少 id 参数" }, { status: 400 });
-    }
+    if (!id) return Response.json({ error: "缺少 id 参数" }, { status: 400 });
 
     const supabase = getServiceClient();
+    const { data: task, error: taskError } = await supabase.from("generation_tasks").select("*").eq("id", id).single();
+    if (taskError) return Response.json({ error: "任务不存在" }, { status: 404 });
 
-    // Query local DB first
-    const { data: task, error: taskError } = await supabase
-      .from("generation_tasks")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (taskError) {
-      return Response.json({ error: "任务不存在" }, { status: 404 });
-    }
-
-    // If already in terminal state, return directly
+    // Terminal state — return directly
     if (task.status === "succeeded" || task.status === "failed") {
-      return Response.json({
-        success: task.status === "succeeded",
-        status: task.status,
-        resultUrl: task.result_url || null,
-        error: task.error_message || null,
-        raw: task.raw,
-      });
+      return Response.json({ success: task.status === "succeeded", status: task.status, resultUrl: task.result_url || null, error: task.error_message || null });
     }
 
-    // If no task_id from DashScope (pending or image sync), return current state
+    // No provider task_id — return current state
     if (!task.task_id) {
-      return Response.json({
-        success: true,
-        status: task.status,
-        resultUrl: task.result_url || null,
-        error: task.error_message || null,
-        raw: null,
-      });
+      return Response.json({ success: true, status: task.status, resultUrl: task.result_url || null, error: task.error_message || null });
     }
 
-    // Query DashScope for async task status
+    // Query DashScope
     let dashResult;
-    try {
-      dashResult = await queryTask(task.task_id);
-    } catch (queryErr) {
-      const errMsg = queryErr.message || "查询失败";
-      return Response.json({
-        success: false,
-        status: task.status,
-        error: errMsg,
-        resultUrl: task.result_url || null,
-        raw: null,
-      });
+    try { dashResult = await queryTask(task.task_id); }
+    catch (queryErr) {
+      return Response.json({ success: false, status: task.status, error: queryErr.message, resultUrl: task.result_url || null });
     }
 
-    const { status: dashStatus, resultUrl, error: dashError, raw: dashRaw } = dashResult;
+    const { status: remoteStatus, resultUrl, error: dashError, raw: dashRaw } = dashResult;
+    const mappedStatus = remoteStatus === "SUCCEEDED" ? "succeeded" : remoteStatus === "FAILED" ? "failed" : "running";
 
-    // Still running — stay in DB as running, return to frontend for polling
-    if (dashStatus === "RUNNING" || dashStatus === "PENDING") {
-      return Response.json({
-        success: true,
-        status: "running",
-        resultUrl: null,
-        error: null,
-        raw: dashRaw,
-      });
+    if (mappedStatus === "running") {
+      return Response.json({ success: true, status: "running", resultUrl: null, error: null });
     }
 
-    // Succeeded
-    if (dashStatus === "SUCCEEDED") {
-      if (resultUrl) {
-        // Update DB
-        await supabase
-          .from("generation_tasks")
-          .update({
-            status: "succeeded",
-            result_url: resultUrl,
-            raw: dashRaw,
-          })
-          .eq("id", id);
+    if (mappedStatus === "succeeded" && resultUrl) {
+      // Update task
+      await supabase.from("generation_tasks").update({
+        status: "succeeded", result_url: resultUrl, raw: dashRaw,
+      }).eq("id", id);
 
-        // Write to generated_assets (only when resultUrl exists)
-        await supabase
-          .from("generated_assets")
-          .insert({
-            project_id: task.project_id,
-            shot_id: task.shot_id,
-            task_id: id,
-            type: task.type,
-            url: resultUrl,
-            prompt: task.prompt,
-            model: task.model,
-          });
+      // Save asset
+      const assetType = task.type === "image" ? "image" : "video";
+      await supabase.from("generated_assets").insert({
+        project_id: task.project_id, shot_id: task.shot_id, task_id: id,
+        type: assetType, url: resultUrl, prompt: task.prompt, model: task.model, provider: task.provider || "dashscope",
+      });
 
-        // If this task has a shot, update shot status and url field
-        if (task.shot_id) {
-          const statusField = task.type === "image" ? "已生成图" : "已生成视频";
-          const urlField = task.type === "image" ? "image_url" : "video_url";
-          await supabase
-            .from("shots")
-            .update({ status: statusField, [urlField]: resultUrl })
-            .eq("id", task.shot_id);
-        }
-
-        return Response.json({
-          success: true,
-          status: "succeeded",
-          resultUrl,
-          error: null,
-          raw: dashRaw,
-        });
+      // Update shot
+      if (task.shot_id) {
+        const isImage = task.type === "image";
+        await supabase.from("shots").update({
+          status: isImage ? "已生成图" : "已生成视频",
+          [isImage ? "image_url" : "video_url"]: resultUrl,
+        }).eq("id", task.shot_id);
       }
 
-      // Succeeded but no URL parsed — save raw for debugging, don't mark as failed
-      await supabase
-        .from("generation_tasks")
-        .update({ raw: dashRaw })
-        .eq("id", id);
-
-      return Response.json({
-        success: false,
-        status: "succeeded",
-        resultUrl: null,
-        error: "任务成功，但未解析到资源链接，请查看服务端 raw 输出。",
-        raw: dashRaw,
-      });
+      return Response.json({ success: true, status: "succeeded", resultUrl, error: null });
     }
 
-    // Failed
-    if (dashStatus === "FAILED") {
-      const errMsg = dashError || "生成失败";
-      await supabase
-        .from("generation_tasks")
-        .update({
-          status: "failed",
-          error_message: errMsg,
-          raw: dashRaw,
-        })
-        .eq("id", id);
-
-      return Response.json({
-        success: false,
-        status: "failed",
-        error: errMsg,
-        resultUrl: null,
-        raw: dashRaw,
-      });
+    if (mappedStatus === "succeeded" && !resultUrl) {
+      // Succeeded but no URL
+      await supabase.from("generation_tasks").update({ raw: dashRaw }).eq("id", id);
+      return Response.json({ success: false, status: "succeeded", resultUrl: null, error: "未解析到资源链接" });
     }
 
-    // Unexpected status — keep in running for retry
-    return Response.json({
-      success: true,
-      status: "running",
-      resultUrl: null,
-      error: null,
-      raw: dashRaw,
-    });
+    if (mappedStatus === "failed") {
+      await supabase.from("generation_tasks").update({
+        status: "failed", error_message: dashError || "生成失败", raw: dashRaw,
+      }).eq("id", id);
+      return Response.json({ success: false, status: "failed", error: dashError || "生成失败", resultUrl: null });
+    }
+
+    return Response.json({ success: true, status: "running", resultUrl: null, error: null });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }

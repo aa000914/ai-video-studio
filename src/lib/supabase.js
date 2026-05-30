@@ -39,7 +39,8 @@ const FALLBACK_COLUMNS = {
     "id", "project_id", "shot_number", "duration", "scene_name",
     "characters", "visual", "camera", "dialogue", "sound",
     "image_prompt", "video_prompt", "refined_image_prompt", "refined_video_prompt",
-    "image_url", "video_url",
+    "negative_prompt",
+    "image_url", "video_url", "selected_image_url", "selected_video_url",
     "notes", "status", "created_at",
   ]),
   projects: new Set([
@@ -53,7 +54,8 @@ const FALLBACK_COLUMNS = {
   ]),
   generated_assets: new Set([
     "id", "project_id", "shot_id", "task_id", "type", "url",
-    "prompt", "model", "created_at",
+    "prompt", "model", "provider", "metadata", "is_selected",
+    "created_at",
   ]),
 };
 

@@ -5,29 +5,31 @@ import { useParams, useRouter } from "next/navigation";
 import PlanPanel from "@/components/PlanPanel";
 import CharacterPanel from "@/components/CharacterPanel";
 import ScenePanel from "@/components/ScenePanel";
-import ShotPanel from "@/components/ShotPanel";
-import ShotEditorPanel from "@/components/ShotEditorPanel";
+import ShotBoardPanel from "@/components/ShotBoardPanel";
+import ShotDetailDrawer from "@/components/ShotDetailDrawer";
+import GenerationQueuePanel from "@/components/GenerationQueuePanel";
+import AssetsPanel from "@/components/AssetsPanel";
 import ExportPanel from "@/components/ExportPanel";
 
-const STEPS = [
-  { key: "plan", label: "策划案", icon: "📋" },
+const TABS = [
+  { key: "overview", label: "概览", icon: "📊" },
+  { key: "script", label: "剧本/创意", icon: "📝" },
   { key: "subjects", label: "主体库", icon: "🎭" },
-  { key: "storyboard", label: "分镜剧本", icon: "📜" },
-  { key: "editor", label: "分镜编辑 · 生图 · 生视频", icon: "✂️" },
-  { key: "export", label: "导出制作包", icon: "📦" },
+  { key: "shots", label: "Shot Board", icon: "🎬" },
+  { key: "tasks", label: "任务", icon: "📋" },
+  { key: "assets", label: "素材", icon: "📂" },
+  { key: "export", label: "导出", icon: "📦" },
 ];
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [project, setProject] = useState(null);
-  const [activeTab, setActiveTab] = useState("plan");
+  const [activeTab, setActiveTab] = useState("shots");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [stats, setStats] = useState({
-    characters: 0, scenes: 0, shots: 0, hasPlan: false,
-    pendingShots: 0, imageDoneShots: 0, videoDoneShots: 0, redoShots: 0, approvedShots: 0,
-  });
+  const [detailShot, setDetailShot] = useState(null);
+  const [stats, setStats] = useState({ characters: 0, scenes: 0, shots: 0, hasPlan: false, taskTotal: 0, assetTotal: 0 });
 
   const projectId = params.id;
 
@@ -38,51 +40,36 @@ export default function ProjectDetailPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "项目不存在");
       setProject(json.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
   }, [projectId]);
 
   const loadStats = useCallback(async () => {
     try {
-      const [charRes, sceneRes, shotRes, planRes] = await Promise.all([
+      const [charRes, sceneRes, shotRes, planRes, tasksRes] = await Promise.all([
         fetch(`/api/characters?project_id=${projectId}`),
         fetch(`/api/scenes?project_id=${projectId}`),
         fetch(`/api/shots?project_id=${projectId}`),
         fetch(`/api/plans?project_id=${projectId}`),
+        fetch(`/api/tasks?project_id=${projectId}&limit=500`),
       ]);
-      const [c, s, sh, p] = await Promise.all([
-        charRes.json(), sceneRes.json(), shotRes.json(), planRes.json(),
-      ]);
-      const shots = sh.data || [];
+      const [c, s, sh, p, t] = await Promise.all([charRes.json(), sceneRes.json(), shotRes.json(), planRes.json(), tasksRes.json()]);
+      const taskList = t.data || [];
       setStats({
         characters: (c.data || []).length,
         scenes: (s.data || []).length,
-        shots: shots.length,
+        shots: (sh.data || []).length,
         hasPlan: !!p.data,
-        pendingShots: shots.filter((s) => !s.status || s.status === "待生成").length,
-        imageDoneShots: shots.filter((s) => s.status === "已生成图").length,
-        videoDoneShots: shots.filter((s) => s.status === "已生成视频").length,
-        redoShots: shots.filter((s) => s.status === "需重做").length,
-        approvedShots: shots.filter((s) => s.status === "已通过").length,
+        taskTotal: taskList.length,
+        assetTotal: taskList.filter((x) => x.status === "succeeded" && x.result_url).length,
       });
     } catch { /* silently fail */ }
   }, [projectId]);
 
   useEffect(() => { loadProject(); loadStats(); }, [loadProject, loadStats]);
 
-  const completionPct = stats.shots > 0 ? Math.round((stats.approvedShots / stats.shots) * 100) : 0;
-
-  function stepStatus(key) {
-    if (key === "plan") return stats.hasPlan ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "subjects") return stats.characters > 0 || stats.scenes > 0 ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "storyboard" || key === "editor" || key === "generate")
-      return stats.shots > 0 ? "done" : activeTab === key ? "active" : "pending";
-    if (key === "export") return stats.shots > 0 ? "done" : activeTab === key ? "active" : "pending";
-    return "pending";
-  }
+  function handleOpenDetail(shot) { setDetailShot(shot); }
+  function handleCloseDetail() { setDetailShot(null); loadStats(); }
 
   if (loading) {
     return (
@@ -99,10 +86,8 @@ export default function ProjectDetailPage() {
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <div className="flex items-start gap-2">
-            <span className="text-red-500 font-medium shrink-0">错误</span>
-            <span className="text-red-700 text-sm">{error}</span>
-          </div>
+          <span className="text-red-500 font-medium">错误：</span>
+          <span className="text-red-700 text-sm">{error}</span>
         </div>
         <button onClick={() => router.push("/")} className="text-blue-600 text-sm hover:underline">返回首页</button>
       </div>
@@ -121,104 +106,123 @@ export default function ProjectDetailPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">{project?.title}</h1>
             <div className="flex gap-2 mt-1 flex-wrap">
-              {project?.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{project.type}</span>}
+              {project?.type && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{project.type}</span>}
               {project?.platform && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{project.platform}</span>}
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{project?.status}</span>
+              {stats.shots > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{stats.shots} 镜</span>}
             </div>
           </div>
-          {stats.shots > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-xs text-gray-400">完成度</div>
-                <div className="text-2xl font-bold text-blue-600">{completionPct}%</div>
-              </div>
-              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#2563eb" strokeWidth="3"
-                  strokeDasharray={`${Math.min(completionPct * 0.97, 97)} 100`} strokeLinecap="round" />
-              </svg>
-            </div>
-          )}
         </div>
-
-        {/* Stats dashboard */}
-        {stats.shots > 0 && (
-          <div className="mt-4 grid grid-cols-4 md:grid-cols-8 gap-2">
-            <MiniStat label="角色" value={stats.characters} />
-            <MiniStat label="场景" value={stats.scenes} />
-            <MiniStat label="分镜" value={stats.shots} />
-            <MiniStat label="待生成" value={stats.pendingShots} color="text-gray-500" />
-            <MiniStat label="已生图" value={stats.imageDoneShots} color="text-blue-600" />
-            <MiniStat label="已生视频" value={stats.videoDoneShots} color="text-purple-600" />
-            <MiniStat label="需重做" value={stats.redoShots} color="text-red-600" />
-            <MiniStat label="已通过" value={stats.approvedShots} color="text-green-600" />
-          </div>
-        )}
       </div>
 
-      {/* Step tabs */}
+      {/* Tab bar */}
       <div className="bg-white border-b shrink-0 px-6">
         <div className="flex gap-0 overflow-x-auto">
-          {STEPS.map((step, i) => {
-            const status = stepStatus(step.key);
-            return (
-              <button key={step.key} onClick={() => setActiveTab(step.key)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-all shrink-0 ${
-                  activeTab === step.key
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                  status === "done" ? "bg-green-500 text-white"
-                    : activeTab === step.key ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-500"
-                }`}>
-                  {status === "done" ? "✓" : i + 1}
-                </span>
-                {step.label}
-              </button>
-            );
-          })}
+          {TABS.map((tab) => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3.5 py-3 text-sm font-medium border-b-2 transition-all shrink-0 ${
+                activeTab === tab.key
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}>
+              <span className="text-base">{tab.icon}</span> {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === "plan" && <PlanPanel projectId={projectId} onStatsChange={loadStats} />}
+        {activeTab === "overview" && (
+          <div className="max-w-4xl mx-auto p-6 space-y-6">
+            <div className="bg-white border rounded-xl p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">{project?.title}</h2>
+              {project?.description && <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard label="剧本/创意" value={stats.hasPlan ? "✓" : "—"} color="blue" />
+              <StatCard label="角色" value={stats.characters} color="green" />
+              <StatCard label="场景" value={stats.scenes} color="purple" />
+              <StatCard label="分镜" value={stats.shots} color="amber" />
+              <StatCard label="生成任务" value={stats.taskTotal} color="indigo" />
+              <StatCard label="素材" value={stats.assetTotal} color="teal" />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "script" && (
+          <PlanPanel projectId={projectId} onStatsChange={loadStats} />
+        )}
+
         {activeTab === "subjects" && (
           <div className="p-6 space-y-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">👤</span>
-                <h2 className="text-base font-semibold text-gray-900">角色主体</h2>
-                <span className="text-xs text-gray-400">({stats.characters})</span>
+                <h2 className="text-base font-semibold text-gray-900">角色 ({stats.characters})</h2>
               </div>
               <CharacterPanel projectId={projectId} />
             </div>
-            <hr className="border-gray-200" />
+            <hr />
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">🏛</span>
-                <h2 className="text-base font-semibold text-gray-900">场景主体</h2>
-                <span className="text-xs text-gray-400">({stats.scenes})</span>
+                <h2 className="text-base font-semibold text-gray-900">场景 ({stats.scenes})</h2>
               </div>
               <ScenePanel projectId={projectId} />
             </div>
           </div>
         )}
-        {activeTab === "storyboard" && <ShotPanel projectId={projectId} />}
-        {activeTab === "editor" && <ShotEditorPanel projectId={projectId} />}
-        {activeTab === "export" && <ExportPanel project={project} projectId={projectId} />}
+
+        {activeTab === "shots" && (
+          <div className="p-6">
+            <ShotBoardPanel
+              projectId={projectId}
+              onOpenDetail={handleOpenDetail}
+              onGenerateImage={() => loadStats()}
+              onGenerateVideo={() => loadStats()}
+            />
+          </div>
+        )}
+
+        {activeTab === "tasks" && (
+          <GenerationQueuePanel projectId={projectId} />
+        )}
+
+        {activeTab === "assets" && (
+          <AssetsPanel projectId={projectId} />
+        )}
+
+        {activeTab === "export" && (
+          <div className="p-6">
+            <ExportPanel project={project} projectId={projectId} />
+          </div>
+        )}
       </div>
+
+      {/* Shot Detail Drawer */}
+      {detailShot && (
+        <ShotDetailDrawer
+          shot={detailShot}
+          projectId={projectId}
+          onClose={handleCloseDetail}
+          onUpdated={loadStats}
+        />
+      )}
     </div>
   );
 }
 
-function MiniStat({ label, value, color }) {
+function StatCard({ label, value, color }) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-600", green: "bg-green-50 text-green-600",
+    purple: "bg-purple-50 text-purple-600", amber: "bg-amber-50 text-amber-600",
+    indigo: "bg-indigo-50 text-indigo-600", teal: "bg-teal-50 text-teal-600",
+  };
   return (
-    <div className="text-center px-2 py-1.5 bg-white border rounded-lg">
-      <div className={`text-sm font-bold ${color || "text-gray-900"}`}>{value}</div>
-      <div className="text-[10px] text-gray-400">{label}</div>
+    <div className={`${colors[color] || colors.blue} rounded-xl p-5 text-center`}>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs mt-1 opacity-75">{label}</div>
     </div>
   );
 }

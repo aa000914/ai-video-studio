@@ -273,6 +273,33 @@ export default function ExportPanel({ project, projectId }) {
     URL.revokeObjectURL(url);
   }
 
+  function generateCSV() {
+    const rows = [["shot_index","image_prompt","video_prompt","negative_prompt","selected_image_url","final_video_url"]];
+    shots.forEach((s) => rows.push([
+      s.shot_number || "", s.image_prompt || "", s.video_prompt || "",
+      s.negative_prompt || "", s.selected_image_url || s.image_url || "", s.selected_video_url || s.video_url || "",
+    ]));
+    return "﻿" + rows.map((r) => r.map((c) => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  }
+  function downloadCSV() {
+    const blob = new Blob([generateCSV()], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${project.title}_分镜Prompt.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function generateJSON() {
+    return JSON.stringify({ project: { title: project?.title, type: project?.type }, plan, characters, scenes, shots, tasks, exportedAt: new Date().toISOString() }, null, 2);
+  }
+  function downloadJSON() {
+    const blob = new Blob([generateJSON()], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${project.title}_项目数据.json`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats */}
@@ -309,11 +336,19 @@ export default function ExportPanel({ project, projectId }) {
       <div className="flex flex-wrap gap-3">
         <button onClick={downloadMarkdown}
           className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm">
-          导出制作包 Markdown
+          导出 Markdown
+        </button>
+        <button onClick={downloadCSV}
+          className="bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm">
+          导出 CSV Prompt 表
+        </button>
+        <button onClick={downloadJSON}
+          className="bg-purple-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm">
+          导出 JSON 项目数据
         </button>
         <button onClick={copyAll}
           className="border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50">
-          复制全部内容
+          复制全部
         </button>
       </div>
 
