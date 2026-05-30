@@ -150,7 +150,7 @@ export default function ProjectDetailPage() {
             <CreationTimeline projectState={projectState} />
           </div>
           <div className="w-[66%]">
-            <CreationDocument projectId={projectId} onEnterEditor={() => setMode("editor")} />
+            <CreationDocument projectId={projectId} onEnterEditor={() => setMode("editor")} onUpdateState={loadState} />
           </div>
         </div>
       )}

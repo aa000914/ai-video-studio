@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ImagePreviewModal from "./ImagePreviewModal";
 
-export default function CreationDocument({ projectId, onEnterEditor }) {
+export default function CreationDocument({ projectId, onEnterEditor, onUpdateState }) {
   const [plan, setPlan] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
@@ -14,7 +15,8 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
   const [msg, setMsg] = useState("");
   // Custom prompts
   const [customPrompts, setCustomPrompts] = useState({}); // { charId: "custom prompt", sceneId: "custom prompt" }
-  const [editingPrompt, setEditingPrompt] = useState(null); // { type, id, name, current }
+  const [editingPrompt, setEditingPrompt] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null); // { url, name, prompt, model }
 
   function showMsg(t) { setMsg(t); setTimeout(() => setMsg(""), 3000); }
 
@@ -76,6 +78,7 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
         // Persist to DB
         const url = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
         try { await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
+        if (onUpdateState) onUpdateState();
         showMsg(`${item.name} ${isChar ? "人物" : "场景"}图已生成`);
       } else {
         showMsg(`${item.name} 图任务已提交，请稍后刷新`);
@@ -122,33 +125,39 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           <Section title={`人物列表（${characters.length}）`}>
             <div className="grid gap-4 md:grid-cols-2">
               {characters.map((c) => (
-                <div key={c.id} className="bg-white/5 rounded-xl p-3">
-                  <div className="flex gap-3 items-start">
-                    {charImages[c.id] ? (
-                      <img src={charImages[c.id]} alt={c.name} className="w-20 h-20 rounded-lg object-cover shrink-0 border border-white/10" />
-                    ) : generating[c.id] ? (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
-                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">暂无参考图</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{c.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{c.role} · {c.age}</p>
-                      {c.personality && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{c.personality}</p>}
-                      <div className="flex gap-1.5 mt-2">
-                        <button type="button"
-                          onClick={() => setEditingPrompt({ type: "character", id: c.id, name: c.name, current: getGenPrompt(c, true) })}
-                          className="text-xs text-gray-400 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5">编辑提示词</button>
-                        <button type="button"
-                          onClick={() => handleGenImage(c, true)}
-                          disabled={generating[c.id]}
-                          className="bg-indigo-600 text-white px-2 py-1 rounded-lg text-xs hover:bg-indigo-700 disabled:opacity-50">
-                          {generating[c.id] ? "生成中..." : "生成人物图"}
-                        </button>
+                <div key={c.id} className="bg-white/5 rounded-xl p-4">
+                  {/* Big image area */}
+                  {charImages[c.id] ? (
+                    <div className="relative cursor-pointer group mb-3" onClick={() => setPreviewImage({ url: charImages[c.id], name: c.name, prompt: getGenPrompt(c, true), model: "qwen-image-2.0-pro" })}>
+                      <img src={charImages[c.id]} alt={c.name} className="w-full h-64 object-cover rounded-xl border border-white/10 group-hover:border-indigo-500 transition-colors" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-colors flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium transition-opacity">点击放大</span>
                       </div>
                     </div>
+                  ) : generating[c.id] ? (
+                    <div className="w-full h-64 rounded-xl bg-white/5 flex items-center justify-center mb-3 border border-white/5">
+                      <div className="text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" /><p className="text-gray-500 text-xs">生成中...</p></div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-48 rounded-xl bg-white/5 flex items-center justify-center mb-3 border border-white/5">
+                      <p className="text-gray-600 text-sm">暂无参考图</p>
+                    </div>
+                  )}
+                  {/* Info */}
+                  <p className="text-sm font-medium text-white">{c.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{c.role} · {c.age}</p>
+                  {c.personality && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{c.personality}</p>}
+                  {customPrompts[c.id] && <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">提示词：{customPrompts[c.id]}</p>}
+                  <div className="flex gap-2 mt-2">
+                    <button type="button"
+                      onClick={() => setEditingPrompt({ type: "character", id: c.id, name: c.name, current: getGenPrompt(c, true) })}
+                      className="text-xs text-gray-400 border border-white/10 rounded-lg px-2.5 py-1.5 hover:bg-white/5 flex-1">编辑提示词</button>
+                    <button type="button"
+                      onClick={() => handleGenImage(c, true)}
+                      disabled={generating[c.id]}
+                      className="bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-indigo-700 disabled:opacity-50 flex-1">
+                      {generating[c.id] ? "生成中..." : "生成人物图"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -161,33 +170,37 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           <Section title={`场景列表（${scenes.length}）`}>
             <div className="grid gap-4 md:grid-cols-2">
               {scenes.map((s) => (
-                <div key={s.id} className="bg-white/5 rounded-xl p-3">
-                  <div className="flex gap-3 items-start">
-                    {sceneImages[s.id] ? (
-                      <img src={sceneImages[s.id]} alt={s.name} className="w-20 h-20 rounded-lg object-cover shrink-0 border border-white/10" />
-                    ) : generating[s.id] ? (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
-                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">暂无场景图</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{s.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{s.location} · {s.time_period}</p>
-                      {s.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{s.description}</p>}
-                      <div className="flex gap-1.5 mt-2">
-                        <button type="button"
-                          onClick={() => setEditingPrompt({ type: "scene", id: s.id, name: s.name, current: getGenPrompt(s, false) })}
-                          className="text-xs text-gray-400 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5">编辑提示词</button>
-                        <button type="button"
-                          onClick={() => handleGenImage(s, false)}
-                          disabled={generating[s.id]}
-                          className="bg-teal-600 text-white px-2 py-1 rounded-lg text-xs hover:bg-teal-700 disabled:opacity-50">
-                          {generating[s.id] ? "生成中..." : "生成场景图"}
-                        </button>
+                <div key={s.id} className="bg-white/5 rounded-xl p-4">
+                  {sceneImages[s.id] ? (
+                    <div className="relative cursor-pointer group mb-3" onClick={() => setPreviewImage({ url: sceneImages[s.id], name: s.name, prompt: getGenPrompt(s, false), model: "qwen-image-2.0-pro" })}>
+                      <img src={sceneImages[s.id]} alt={s.name} className="w-full h-44 object-cover rounded-xl border border-white/10 group-hover:border-teal-500 transition-colors" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-colors flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium transition-opacity">点击放大</span>
                       </div>
                     </div>
+                  ) : generating[s.id] ? (
+                    <div className="w-full h-44 rounded-xl bg-white/5 flex items-center justify-center mb-3 border border-white/5">
+                      <div className="text-center"><div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-1" /><p className="text-gray-500 text-xs">生成中...</p></div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-32 rounded-xl bg-white/5 flex items-center justify-center mb-3 border border-white/5">
+                      <p className="text-gray-600 text-sm">暂无场景图</p>
+                    </div>
+                  )}
+                  <p className="text-sm font-medium text-white">{s.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{s.location} · {s.time_period}</p>
+                  {s.description && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{s.description}</p>}
+                  {customPrompts[s.id] && <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">提示词：{customPrompts[s.id]}</p>}
+                  <div className="flex gap-2 mt-2">
+                    <button type="button"
+                      onClick={() => setEditingPrompt({ type: "scene", id: s.id, name: s.name, current: getGenPrompt(s, false) })}
+                      className="text-xs text-gray-400 border border-white/10 rounded-lg px-2.5 py-1.5 hover:bg-white/5 flex-1">编辑提示词</button>
+                    <button type="button"
+                      onClick={() => handleGenImage(s, false)}
+                      disabled={generating[s.id]}
+                      className="bg-teal-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-teal-700 disabled:opacity-50 flex-1">
+                      {generating[s.id] ? "生成中..." : "生成场景图"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -242,6 +255,17 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
             }
             setEditingPrompt(null);
           }}
+        />
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <ImagePreviewModal
+          url={previewImage.url}
+          name={previewImage.name}
+          prompt={previewImage.prompt}
+          model={previewImage.model}
+          onClose={() => setPreviewImage(null)}
         />
       )}
     </div>
