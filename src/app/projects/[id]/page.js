@@ -44,26 +44,6 @@ export default function ProjectDetailPage() {
 
   useEffect(() => { loadProject(); loadShots(); }, [loadProject, loadShots]);
 
-  // ---- 生图 handler ----
-  async function handleGenerateImage(shot) {
-    if (!shot?.id) { showMsg("分镜数据异常"); return; }
-    const prompt = shot.refined_image_prompt || shot.image_prompt || shot.visual || "";
-    if (!prompt.trim()) { showMsg("当前分镜缺少画面描述，无法生成图片。请先编辑分镜填写画面描述。"); return; }
-    setGeneratingId(shot.id);
-    try {
-      const res = await fetch("/api/generation/create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, shotId: shot.id, type: "image", prompt: prompt.trim().slice(0, 600), size: "1280*720" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "提交失败");
-      if (data.status === "succeeded") showMsg("图片生成完成！可在资产库查看。");
-      else showMsg("图片生成任务已提交，请到任务页查看进度。");
-      loadShots();
-    } catch (err) { showMsg("生图失败: " + err.message); }
-    finally { setGeneratingId(null); }
-  }
-
   // ---- 生视频 handler ----
   async function handleGenerateVideo(shot) {
     if (!shot?.id) { showMsg("分镜数据异常"); return; }
@@ -156,7 +136,6 @@ export default function ProjectDetailPage() {
             <ShotBoardPanel
               projectId={projectId}
               onOpenDetail={setDetailShot}
-              onGenerateImage={handleGenerateImage}
               onGenerateVideo={handleGenerateVideo}
               generatingId={generatingId}
             />
