@@ -274,9 +274,9 @@ export default function ExportPanel({ project, projectId }) {
   }
 
   function generateCSV() {
-    const rows = [["shot_index","image_prompt","video_prompt","negative_prompt","selected_image_url","final_video_url"]];
+    const rows = [["shot_index","image_prompt","video_prompt","audio_prompt","negative_prompt","selected_image_url","final_video_url"]];
     shots.forEach((s) => rows.push([
-      s.shot_number || "", s.image_prompt || "", s.video_prompt || "",
+      s.shot_number || "", s.image_prompt || "", s.video_prompt || "", s.audio_prompt || "",
       s.negative_prompt || "", s.selected_image_url || s.image_url || "", s.selected_video_url || s.video_url || "",
     ]));
     return "﻿" + rows.map((r) => r.map((c) => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");

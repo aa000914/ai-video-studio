@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import OverviewPanel from "@/components/OverviewPanel";
 import PlanPanel from "@/components/PlanPanel";
 import CharacterPanel from "@/components/CharacterPanel";
 import ScenePanel from "@/components/ScenePanel";
@@ -134,20 +135,7 @@ export default function ProjectDetailPage() {
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
         {activeTab === "overview" && (
-          <div className="max-w-4xl mx-auto p-6 space-y-6">
-            <div className="bg-white border rounded-xl p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">{project?.title}</h2>
-              {project?.description && <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="剧本/创意" value={stats.hasPlan ? "✓" : "—"} color="blue" />
-              <StatCard label="角色" value={stats.characters} color="green" />
-              <StatCard label="场景" value={stats.scenes} color="purple" />
-              <StatCard label="分镜" value={stats.shots} color="amber" />
-              <StatCard label="生成任务" value={stats.taskTotal} color="indigo" />
-              <StatCard label="素材" value={stats.assetTotal} color="teal" />
-            </div>
-          </div>
+          <OverviewPanel projectId={projectId} onJumpToShots={() => setActiveTab("shots")} />
         )}
 
         {activeTab === "script" && (
@@ -156,10 +144,14 @@ export default function ProjectDetailPage() {
 
         {activeTab === "subjects" && (
           <div className="p-6 space-y-8">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-700 flex items-center gap-2">
+              💡 在 Shot Board 或 Prompt Builder 中输入 <code className="bg-white px-1.5 py-0.5 rounded text-xs font-mono text-indigo-600">@主体名</code> 即可调用下方主体
+            </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">👤</span>
-                <h2 className="text-base font-semibold text-gray-900">角色 ({stats.characters})</h2>
+                <h2 className="text-base font-semibold text-gray-900">角色</h2>
+                <span className="text-xs text-gray-400">({stats.characters})</span>
               </div>
               <CharacterPanel projectId={projectId} />
             </div>
@@ -167,9 +159,31 @@ export default function ProjectDetailPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">🏛</span>
-                <h2 className="text-base font-semibold text-gray-900">场景 ({stats.scenes})</h2>
+                <h2 className="text-base font-semibold text-gray-900">场景</h2>
+                <span className="text-xs text-gray-400">({stats.scenes})</span>
               </div>
               <ScenePanel projectId={projectId} />
+            </div>
+            <hr />
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🎨</span>
+                <h2 className="text-base font-semibold text-gray-900">其他主体类型</h2>
+                <span className="text-xs text-gray-400">道具 / 风格 / 音色 — 可在角色/场景编辑中设置 subject_type</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  { type: "prop", icon: "🗿", label: "道具" },
+                  { type: "style", icon: "🎨", label: "风格" },
+                  { type: "voice", icon: "🎙️", label: "音色" },
+                ].map((t) => (
+                  <div key={t.type} className="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-colors">
+                    <div className="text-2xl mb-1">{t.icon}</div>
+                    <p className="text-xs font-medium text-gray-600">{t.label}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">在角色/场景中设置 subject_type</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -213,16 +227,3 @@ export default function ProjectDetailPage() {
   );
 }
 
-function StatCard({ label, value, color }) {
-  const colors = {
-    blue: "bg-blue-50 text-blue-600", green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600", amber: "bg-amber-50 text-amber-600",
-    indigo: "bg-indigo-50 text-indigo-600", teal: "bg-teal-50 text-teal-600",
-  };
-  return (
-    <div className={`${colors[color] || colors.blue} rounded-xl p-5 text-center`}>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs mt-1 opacity-75">{label}</div>
-    </div>
-  );
-}

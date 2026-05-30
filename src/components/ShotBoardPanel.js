@@ -160,6 +160,14 @@ function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy }) {
             <p className="text-xs text-purple-800 font-mono line-clamp-2">{shot.video_prompt}</p>
           </div>
         )}
+        {shot.audio_prompt && (
+          <div className="bg-amber-50 rounded p-2 cursor-pointer hover:bg-amber-100 transition-colors"
+            onClick={() => onCopy(shot.audio_prompt)}
+            title="点击复制音频提示词">
+            <p className="text-[10px] text-amber-600 font-medium mb-0.5">音频 Prompt</p>
+            <p className="text-xs text-amber-800 font-mono line-clamp-2">{shot.audio_prompt}</p>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
