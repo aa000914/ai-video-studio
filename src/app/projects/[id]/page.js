@@ -7,6 +7,7 @@ import PlanPanel from "@/components/PlanPanel";
 import CharacterPanel from "@/components/CharacterPanel";
 import ScenePanel from "@/components/ScenePanel";
 import ShotBoardPanel from "@/components/ShotBoardPanel";
+import TimelineBar from "@/components/TimelineBar";
 import ShotDetailDrawer from "@/components/ShotDetailDrawer";
 import GenerationQueuePanel from "@/components/GenerationQueuePanel";
 import AssetsPanel from "@/components/AssetsPanel";
@@ -31,6 +32,7 @@ export default function ProjectDetailPage() {
   const [error, setError] = useState("");
   const [detailShot, setDetailShot] = useState(null);
   const [stats, setStats] = useState({ characters: 0, scenes: 0, shots: 0, hasPlan: false, taskTotal: 0, assetTotal: 0 });
+  const [shotsList, setShotsList] = useState([]);
 
   const projectId = params.id;
 
@@ -56,6 +58,7 @@ export default function ProjectDetailPage() {
       ]);
       const [c, s, sh, p, t] = await Promise.all([charRes.json(), sceneRes.json(), shotRes.json(), planRes.json(), tasksRes.json()]);
       const taskList = t.data || [];
+      setShotsList((sh.data || []).sort((a, b) => (a.shot_number || 0) - (b.shot_number || 0)));
       setStats({
         characters: (c.data || []).length,
         scenes: (s.data || []).length,
@@ -99,10 +102,17 @@ export default function ProjectDetailPage() {
     <div className="h-full flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b shrink-0 px-6 py-4">
-        <button onClick={() => router.push("/")}
-          className="text-xs text-gray-400 hover:text-gray-600 mb-2 inline-block">
-          &larr; 返回首页
-        </button>
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => router.push("/")}
+            className="text-xs text-gray-400 hover:text-gray-600">
+            &larr; 返回首页
+          </button>
+          <span className="text-gray-300">|</span>
+          <a href={`/projects/${projectId}/create`}
+            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium">
+            Seko 创作视图
+          </a>
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">{project?.title}</h1>
@@ -189,13 +199,18 @@ export default function ProjectDetailPage() {
         )}
 
         {activeTab === "shots" && (
-          <div className="p-6">
-            <ShotBoardPanel
-              projectId={projectId}
-              onOpenDetail={handleOpenDetail}
-              onGenerateImage={() => loadStats()}
-              onGenerateVideo={() => loadStats()}
-            />
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-auto p-6">
+              <ShotBoardPanel
+                projectId={projectId}
+                onOpenDetail={handleOpenDetail}
+                onGenerateImage={() => loadStats()}
+                onGenerateVideo={() => loadStats()}
+              />
+            </div>
+            {shotsList.length > 0 && (
+              <TimelineBar shots={shotsList} onSelectShot={handleOpenDetail} />
+            )}
           </div>
         )}
 
