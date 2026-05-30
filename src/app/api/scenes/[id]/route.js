@@ -7,15 +7,16 @@ export async function PUT(req, { params }) {
     const supabase = getServiceClient();
     const clean = await safePayload("scenes", body);
     const { data, error } = await supabase
-      .from("scenes")
-      .update(clean)
-      .eq("id", id)
-      .select()
-      .single();
+      .from("scenes").update(clean).eq("id", id).select().single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SCENES_PUT_ERROR]", id, error.message);
+      throw error;
+    }
+    console.log("[SCENES_PUT_OK]", id, Object.keys(clean).join(","));
     return Response.json({ data });
   } catch (err) {
+    console.error("[SCENES_PUT_FAILED]", err.message);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
@@ -24,11 +25,7 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
     const supabase = getServiceClient();
-    const { error } = await supabase
-      .from("scenes")
-      .delete()
-      .eq("id", id);
-
+    const { error } = await supabase.from("scenes").delete().eq("id", id);
     if (error) throw error;
     return Response.json({ success: true });
   } catch (err) {

@@ -26,22 +26,38 @@ export function getSubjectImageUrl(subject, assets = []) {
     || subject?.subject_image_url;
   if (url) return url;
 
-  // 2. 从 assets 查找（按 entity_type + entity_id 匹配）
+  // 2. 从 assets 查找（按 entity_type + entity_id 匹配，支持多种 JSONB key 格式）
   const subjectId = subject?.id;
   const subjectName = subject?.name;
   if (!subjectId) return null;
 
   const matched = assets.filter((a) => {
+    // Only match image-type assets
+    if (a.type !== "image" && a.asset_type !== "image") return false;
     const meta = a.metadata || {};
-    return (
-      (a.entity_type === "character" || a.entity_type === "scene" || meta.target_type === "character" || meta.target_type === "scene")
-      && (String(a.entity_id) === String(subjectId) || String(meta.target_id) === String(subjectId) || meta.target_name === subjectName)
-    );
+    // Check multiple metadata key formats (JSONB may serialize differently)
+    const targetType = a.entity_type || a.target_type
+      || meta.target_type || meta.targetType || meta._target_type
+      || meta.entity_type || meta.entityType
+      || "";
+    const targetId = a.entity_id || a.target_id
+      || meta.target_id || meta.targetId || meta._target_id
+      || meta.entity_id || meta.entityId
+      || "";
+    const targetName = a.entity_name || a.target_name
+      || meta.target_name || meta.targetName || meta._target_name
+      || meta.entity_name || meta.entityName
+      || "";
+
+    const idMatch = String(targetId) === String(subjectId);
+    const nameMatch = targetName === subjectName;
+    const typeMatch = targetType === "character" || targetType === "scene" || targetType === "subject";
+
+    return typeMatch && (idMatch || nameMatch);
   });
 
   if (matched.length === 0) return null;
 
-  // 返回最新的
   matched.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   return resolveAssetUrl(matched[0]);
 }

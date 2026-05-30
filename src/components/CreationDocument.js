@@ -26,15 +26,19 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
   async function loadAll() {
     setLoading(true);
     try {
-      const [planRes, charRes, sceneRes, shotRes, assetsRes] = await Promise.all([
-        fetch(`/api/plans?project_id=${projectId}`),
-        fetch(`/api/characters?project_id=${projectId}`),
-        fetch(`/api/scenes?project_id=${projectId}`),
-        fetch(`/api/shots?project_id=${projectId}`),
-        fetch(`/api/generated-assets?project_id=${projectId}`),
+      const sf = async (url) => { try { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return await r.json(); } catch (e) { console.warn("[LOAD_FAIL]", url, e.message); return {}; } };
+
+      const results = await Promise.allSettled([
+        sf(`/api/plans?project_id=${projectId}`),
+        sf(`/api/characters?project_id=${projectId}`),
+        sf(`/api/scenes?project_id=${projectId}`),
+        sf(`/api/shots?project_id=${projectId}`),
+        sf(`/api/generated-assets?project_id=${projectId}`),
       ]);
-      const [p, c, s, sh, a] = await Promise.all([planRes.json(), charRes.json(), sceneRes.json(), shotRes.json(), assetsRes.json()]);
-      setPlan(p.data || null);
+      const get = (r) => (r.status === "fulfilled" ? r.value : {});
+      const [p, c, s, sh, a] = results.map(get);
+
+      setPlan((p.data !== undefined ? p.data : null) || null);
       setCharacters(c.data || []);
       setScenes(s.data || []);
       setShots((sh.data || []).sort((a, b) => (a.shot_number || 0) - (b.shot_number || 0)));

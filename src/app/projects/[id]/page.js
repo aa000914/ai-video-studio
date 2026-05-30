@@ -47,19 +47,20 @@ export default function ProjectDetailPage() {
 
   async function loadState() {
     try {
-      const [planRes, charRes, sceneRes] = await Promise.all([
+      const results = await Promise.allSettled([
         fetch(`/api/plans?project_id=${projectId}`),
         fetch(`/api/characters?project_id=${projectId}`),
         fetch(`/api/scenes?project_id=${projectId}`),
       ]);
-      const [p, c, s] = await Promise.all([planRes.json(), charRes.json(), sceneRes.json()]);
-      const chars = c.data || []; const scs = s.data || [];
+      const parse = async (r) => { if (r.status === "fulfilled" && r.value.ok) { try { return await r.value.json(); } catch { return {}; } } return {}; };
+      const [pJson, cJson, sJson] = await Promise.all(results.map(parse));
+      const chars = cJson.data || []; const scs = sJson.data || [];
       setProjectState({
-        hasPlan: !!p.data,
+        hasPlan: !!(pJson.data),
         hasChars: chars.length > 0,
-        hasCharImages: chars.some((ch) => ch.subject_image_url),
+        hasCharImages: chars.some((ch) => !!(ch.subject_image_url || ch.image_url || ch.reference_image_url)),
         hasScenes: scs.length > 0,
-        hasSceneImages: scs.some((sc) => sc.subject_image_url),
+        hasSceneImages: scs.some((sc) => !!(sc.subject_image_url || sc.image_url || sc.reference_image_url)),
         hasShots: shotsList.length > 0,
       });
     } catch { /* ignore */ }
