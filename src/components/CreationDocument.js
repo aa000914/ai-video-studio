@@ -62,9 +62,10 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "生成失败");
 
-      // For sync completion, get URL immediately
       if (data.resultUrl) {
         setCharImages((p) => ({ ...p, [char.id]: data.resultUrl }));
+        // Persist to character record so it survives refresh
+        try { await fetch(`/api/characters/${char.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
         showMsg(`${char.name} 参考图已生成`);
       } else {
         showMsg(`${char.name} 参考图任务已提交，请稍后刷新查看`);
@@ -73,7 +74,6 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
     finally { setGenerating((p) => ({ ...p, [char.id]: false })); }
   }
 
-  // Generate reference image for a scene
   async function handleGenSceneImage(scene) {
     const prompt = scene.prompt_front || scene.prompt || `${scene.name}, ${scene.description || ""} — scene reference, ${scene.lighting || ""}`;
     if (!prompt.trim()) { showMsg("缺少场景描述，无法生成场景图"); return; }
@@ -88,6 +88,7 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
 
       if (data.resultUrl) {
         setSceneImages((p) => ({ ...p, [scene.id]: data.resultUrl }));
+        try { await fetch(`/api/scenes/${scene.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
         showMsg(`${scene.name} 场景图已生成`);
       } else {
         showMsg(`${scene.name} 场景图任务已提交，请稍后刷新查看`);

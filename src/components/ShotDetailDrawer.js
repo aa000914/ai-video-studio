@@ -305,7 +305,10 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, 
             </div>
             {/* Video Prompt */}
             <div className="mb-4 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-              <p className="text-xs font-medium text-purple-700 mb-2">🎬 Video Prompt</p>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs font-medium text-purple-700">🎬 图生视频提示词</p>
+                <span className="text-[10px] text-gray-400">该内容用于生成视频，可修改</span>
+              </div>
               <PromptBuilder type="video" subjects={subjects}
                 initialPrompt={form.refined_video_prompt || form.video_prompt || ""}
                 shot={shot}
