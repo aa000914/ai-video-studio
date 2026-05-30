@@ -10,7 +10,7 @@ const STATUS_CONFIG = {
   "已通过": "bg-green-100 text-green-700",
 };
 
-export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateVideo, generatingId }) {
+export default function ShotBoardPanel({ projectId, onEdit, onGenerateVideo, generatingId }) {
   const [shots, setShots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -77,7 +77,7 @@ export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateVide
             <ShotCard
               key={s.id}
               shot={s}
-              onEdit={() => onOpenDetail?.(s)}
+              onEdit={() => onEdit?.(s)}
               onGenerateVideo={() => onGenerateVideo?.(s)}
               generating={generatingId === s.id}
             />

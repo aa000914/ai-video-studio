@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import CreationTimeline from "@/components/CreationTimeline";
 import CreationDocument from "@/components/CreationDocument";
 import ShotBoardPanel from "@/components/ShotBoardPanel";
-import ShotDetailDrawer from "@/components/ShotDetailDrawer";
+import SimpleShotEditModal from "@/components/SimpleShotEditModal";
 import TimelineBar from "@/components/TimelineBar";
 
 export default function ProjectDetailPage() {
@@ -15,7 +15,7 @@ export default function ProjectDetailPage() {
   const [mode, setMode] = useState("doc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [detailShot, setDetailShot] = useState(null);
+  const [editingShot, setEditingShot] = useState(null);
   const [shotsList, setShotsList] = useState([]);
   const [message, setMessage] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
@@ -43,6 +43,11 @@ export default function ProjectDetailPage() {
   }, [projectId]);
 
   useEffect(() => { loadProject(); loadShots(); }, [loadProject, loadShots]);
+
+  // ---- 保存分镜 handler ----
+  function handleSaveShot(updatedShot) {
+    setShotsList((prev) => prev.map((s) => (s.id === updatedShot.id ? { ...s, ...updatedShot } : s)));
+  }
 
   // ---- 生视频 handler ----
   async function handleGenerateVideo(shot) {
@@ -135,25 +140,23 @@ export default function ProjectDetailPage() {
           <div className="flex-1 overflow-auto p-6">
             <ShotBoardPanel
               projectId={projectId}
-              onOpenDetail={setDetailShot}
+              onEdit={setEditingShot}
               onGenerateVideo={handleGenerateVideo}
               generatingId={generatingId}
             />
           </div>
           {shotsList.length > 0 && (
-            <TimelineBar shots={shotsList} onSelectShot={setDetailShot} />
+            <TimelineBar shots={shotsList} onSelectShot={setEditingShot} />
           )}
         </div>
       )}
 
-      {/* Shot Detail Drawer */}
-      {detailShot && (
-        <ShotDetailDrawer
-          shot={detailShot}
-          projectId={projectId}
-          shotsTotal={shotsList.length}
-          onClose={() => { setDetailShot(null); loadShots(); }}
-          onUpdated={loadShots}
+      {/* Simple Edit Modal */}
+      {editingShot && (
+        <SimpleShotEditModal
+          shot={editingShot}
+          onClose={() => setEditingShot(null)}
+          onSave={handleSaveShot}
         />
       )}
     </div>
