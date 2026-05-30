@@ -45,10 +45,12 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
       (c.data || []).forEach((ch) => {
         const url = getSubjectImageUrl(ch, assets);
         if (url) ci[ch.id] = url;
+        console.log("[CHAR_IMAGE_RESOLVE]", ch.name, "subject_image_url=" + ch.subject_image_url, "resolved=" + (url ? url.slice(0, 60) + "..." : "MISSING"));
       });
       (s.data || []).forEach((sc) => {
         const url = getSubjectImageUrl(sc, assets);
         if (url) si[sc.id] = url;
+        console.log("[SCENE_IMAGE_RESOLVE]", sc.name, "subject_image_url=" + sc.subject_image_url, "resolved=" + (url ? url.slice(0, 60) + "..." : "MISSING"));
       });
       setCharImages(ci); setSceneImages(si);
     } catch { /* ignore */ }
@@ -81,22 +83,13 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
         if (isChar) setCharImages((p) => ({ ...p, [item.id]: data.resultUrl }));
         else setSceneImages((p) => ({ ...p, [item.id]: data.resultUrl }));
 
-        // Persist: write to subject record + generated_asset metadata
+        // Persist: write subject_image_url to character/scene record
         const endpoint = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
         try {
           const putRes = await fetch(endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) });
-          if (!putRes.ok) console.error("PUT subject_image_url failed:", putRes.status);
-        } catch (e) { console.error("PUT subject_image_url error:", e); }
-
-        // Also update generated_asset metadata if task created
-        if (data.generationTaskId) {
-          try {
-            await fetch(`/api/generated-assets/${data.generationTaskId}`, {
-              method: "PUT", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ metadata: { target_type: isChar ? "character" : "scene", target_id: item.id, target_name: item.name, source: "creation_document" } }),
-            });
-          } catch (e) { console.error("PUT asset metadata error:", e); }
-        }
+          if (!putRes.ok) console.error("[PERSIST_IMAGE_FAILED]", endpoint, putRes.status);
+          else console.log("[PERSIST_IMAGE_OK]", item.name, data.resultUrl?.slice(0, 60));
+        } catch (e) { console.error("[PERSIST_IMAGE_ERROR]", endpoint, e); }
 
         if (onUpdateState) onUpdateState();
         showMsg(`${item.name} ${isChar ? "人物" : "场景"}图已生成`);

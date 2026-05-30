@@ -75,7 +75,7 @@ export default function ProjectDetailPage() {
     if (!shot?.id) { showMsg("分镜数据异常"); return; }
     const imageUrl = shot.selected_image_url || shot.image_url;
     if (!imageUrl) { showMsg("请先生成或选择首帧图，再生成视频。"); return; }
-    const prompt = shot.refined_video_prompt || shot.video_prompt || "Generate video from this image";
+    const prompt = shot.video_prompt || shot.visual || shot.story_text || shot.refined_video_prompt || "Generate video from this image";
     setGeneratingId(shot.id);
     try {
       const res = await fetch("/api/generation/create", {

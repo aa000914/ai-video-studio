@@ -17,7 +17,7 @@ export default function SimpleShotEditModal({ shot, onClose, onSave }) {
       camera: shot.camera || shot.camera_angle || "",
       dialogue: shot.dialogue || "",
       sound: shot.sound || "",
-      video_prompt: shot.video_prompt || shot.refined_video_prompt || "",
+      video_prompt: shot.visual || shot.video_prompt || shot.refined_video_prompt || "",
     });
   }, [shot]);
 
