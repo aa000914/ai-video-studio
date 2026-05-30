@@ -178,13 +178,6 @@ export default function ScenePanel({ projectId }) {
                 {s.style && <Row label="风格" value={s.style} />}
               </div>
 
-              {s.prompt && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3 mb-2">
-                  <p className="text-xs font-semibold text-green-700 mb-1">场景提示词</p>
-                  <p className="text-xs text-green-800 leading-relaxed font-mono">{s.prompt}</p>
-                </div>
-              )}
-
               {s.prohibited_elements && (
                 <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-2">
                   <p className="text-xs font-semibold text-red-700 mb-1">禁止元素</p>
@@ -192,27 +185,17 @@ export default function ScenePanel({ projectId }) {
                 </div>
               )}
 
-              {/* Multi-angle prompts */}
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                {s.prompt_front && (
-                  <div className="bg-gray-50 border rounded-lg p-2 text-center">
-                    <p className="text-xs text-gray-400 mb-0.5">主视图</p>
-                    <p className="text-xs text-gray-600 font-mono line-clamp-2" title={s.prompt_front}>{s.prompt_front}</p>
+              {(s.prompt || s.prompt_front || s.prompt_back || s.prompt_overhead) && (
+                <details className="mb-2 text-xs">
+                  <summary className="text-gray-400 cursor-pointer hover:text-gray-600">高级信息 · 原始提示词</summary>
+                  <div className="mt-2 space-y-1 p-2 bg-gray-50 rounded-lg border">
+                    {s.prompt && <div><span className="text-gray-400">场景提示词：</span><span className="text-gray-500 font-mono break-all">{s.prompt}</span></div>}
+                    {s.prompt_front && <div><span className="text-gray-400">主视图：</span><span className="text-gray-500 font-mono break-all">{s.prompt_front}</span></div>}
+                    {s.prompt_back && <div><span className="text-gray-400">反打视图：</span><span className="text-gray-500 font-mono break-all">{s.prompt_back}</span></div>}
+                    {s.prompt_overhead && <div><span className="text-gray-400">俯视图：</span><span className="text-gray-500 font-mono break-all">{s.prompt_overhead}</span></div>}
                   </div>
-                )}
-                {s.prompt_back && (
-                  <div className="bg-gray-50 border rounded-lg p-2 text-center">
-                    <p className="text-xs text-gray-400 mb-0.5">反打视图</p>
-                    <p className="text-xs text-gray-600 font-mono line-clamp-2" title={s.prompt_back}>{s.prompt_back}</p>
-                  </div>
-                )}
-                {s.prompt_overhead && (
-                  <div className="bg-gray-50 border rounded-lg p-2 text-center">
-                    <p className="text-xs text-gray-400 mb-0.5">俯视图</p>
-                    <p className="text-xs text-gray-600 font-mono line-clamp-2" title={s.prompt_overhead}>{s.prompt_overhead}</p>
-                  </div>
-                )}
-              </div>
+                </details>
+              )}
 
               {/* Scene image */}
               {genImages[s.id] ? (
@@ -241,7 +224,7 @@ export default function ScenePanel({ projectId }) {
               <div className="flex gap-2">
                 <button onClick={() => copyScenePrompt(s)}
                   className="flex-1 border border-green-200 text-green-600 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition-colors">
-                  {copiedId === s.id ? "已复制" : "复制提示词"}
+                  {copiedId === s.id ? "已复制" : "复制生成提示词"}
                 </button>
                 <button onClick={() => handleGenerateSceneImage(s)} disabled={genStates[s.id] === "generating"}
                   className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all">

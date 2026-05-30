@@ -345,19 +345,19 @@ export default function ExportPanel({ project, projectId }) {
       <div className="flex flex-wrap gap-3">
         <button onClick={downloadMarkdown}
           className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm">
-          导出 Markdown
+          导出制作包 (Markdown)
         </button>
         <button onClick={downloadCSV}
           className="bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm">
-          导出 CSV Prompt 表
+          导出提示词表 (CSV)
         </button>
         <button onClick={downloadJSON}
           className="bg-purple-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm">
-          导出 JSON 项目数据
+          导出项目数据 (JSON)
         </button>
         <button onClick={copyAll}
           className="border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50">
-          复制全部
+          复制制作包
         </button>
       </div>
 

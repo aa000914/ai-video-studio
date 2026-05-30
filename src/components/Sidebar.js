@@ -26,7 +26,8 @@ export default function Sidebar() {
   const navItems = [
     { path: "/", icon: LayoutDashboard, label: "首页" },
     { path: "/subjects", icon: Library, label: "主体库" },
-    { path: "/tasks", icon: ListChecks, label: "生成任务" },
+    { path: "/tasks", icon: ListChecks, label: "任务" },
+    { path: "/assets", icon: Library, label: "资产库" },
     { path: "/workspace", icon: FolderOpen, label: "我的空间" },
   ];
 

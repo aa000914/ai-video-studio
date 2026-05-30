@@ -142,51 +142,34 @@ function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy }) {
         {shot.camera && <p className="text-xs text-gray-500"><span className="text-gray-400">运镜：</span>{shot.camera}</p>}
       </div>
 
-      {/* Prompts (condensed) */}
-      <div className="px-4 pb-1 space-y-1">
-        {shot.image_prompt && (
-          <div className="bg-blue-50 rounded p-2 cursor-pointer hover:bg-blue-100 transition-colors"
-            onClick={() => onCopy(shot.image_prompt)}
-            title="点击复制图片提示词">
-            <p className="text-[10px] text-blue-600 font-medium mb-0.5">图片 Prompt</p>
-            <p className="text-xs text-blue-800 font-mono line-clamp-2">{shot.image_prompt}</p>
-          </div>
+      {/* Key info fields (Chinese only) */}
+      <div className="px-4 pt-2 space-y-1.5">
+        {shot.visual && (
+          <p className="text-xs text-gray-700 line-clamp-2"><span className="text-gray-400">画面：</span>{shot.visual}</p>
         )}
-        {shot.video_prompt && (
-          <div className="bg-purple-50 rounded p-2 cursor-pointer hover:bg-purple-100 transition-colors"
-            onClick={() => onCopy(shot.video_prompt)}
-            title="点击复制视频提示词">
-            <p className="text-[10px] text-purple-600 font-medium mb-0.5">视频 Prompt</p>
-            <p className="text-xs text-purple-800 font-mono line-clamp-2">{shot.video_prompt}</p>
-          </div>
-        )}
-        {shot.audio_prompt && (
-          <div className="bg-amber-50 rounded p-2 cursor-pointer hover:bg-amber-100 transition-colors"
-            onClick={() => onCopy(shot.audio_prompt)}
-            title="点击复制音频提示词">
-            <p className="text-[10px] text-amber-600 font-medium mb-0.5">音频 Prompt</p>
-            <p className="text-xs text-amber-800 font-mono line-clamp-2">{shot.audio_prompt}</p>
-          </div>
+        {shot.story_text && (
+          <p className="text-xs text-gray-700 line-clamp-2"><span className="text-gray-400">剧情：</span>{shot.story_text}</p>
         )}
       </div>
 
       {/* Actions */}
-      <div className="px-4 py-3 border-t flex gap-2 flex-wrap">
+      <div className="px-4 py-3 border-t flex gap-1.5 flex-wrap">
         <button onClick={onEdit}
-          className="border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+          className="border border-gray-300 text-gray-600 px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors">
           编辑
         </button>
         <button onClick={() => onGenerateImage?.(shot)}
-          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition-colors shadow-sm">
+          className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition-colors shadow-sm">
           生图
         </button>
         <button onClick={() => onGenerateVideo?.(shot)}
-          className="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-purple-700 transition-colors shadow-sm">
+          className="bg-purple-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-700 transition-colors shadow-sm">
           生视频
         </button>
-        <button onClick={() => onCopy(shot.image_prompt || shot.video_prompt)}
-          className="border border-gray-200 text-gray-400 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors">
-          复制
+        <button onClick={onEdit}
+          className="border border-gray-200 text-gray-500 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors"
+          title="点击编辑查看候选结果">
+          查看资产
         </button>
       </div>
     </div>

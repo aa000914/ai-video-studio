@@ -202,14 +202,6 @@ export default function CharacterPanel({ projectId }) {
                 {c.costume && <Row label="服装" value={c.costume} />}
               </div>
 
-              {c.prompt && (
-                <div className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">角色一致性提示词</p>
-                  <p className="text-xs text-blue-800 leading-relaxed font-mono">{c.prompt}</p>
-                  <p className="text-xs text-blue-400 mt-2 italic">用于保持后续分镜中角色一致性</p>
-                </div>
-              )}
-
               {c.prohibited_changes && (
                 <div className="mt-2 bg-red-50 border border-red-100 rounded-lg p-3">
                   <p className="text-xs font-semibold text-red-700 mb-1">禁止变化点</p>
@@ -217,11 +209,17 @@ export default function CharacterPanel({ projectId }) {
                 </div>
               )}
 
-              {c.prompt_front && (
-                <div className="mt-2 bg-gray-50 border rounded-lg p-3">
-                  <p className="text-xs font-medium text-gray-600 mb-1">正面提示词</p>
-                  <p className="text-xs text-gray-700 font-mono">{c.prompt_front}</p>
-                </div>
+              {/* Advanced info — collapsed by default */}
+              {(c.prompt || c.prompt_front || c.prompt_back || c.prompt_overhead) && (
+                <details className="mt-2 text-xs">
+                  <summary className="text-gray-400 cursor-pointer hover:text-gray-600">高级信息 · 原始提示词</summary>
+                  <div className="mt-2 space-y-1.5 p-2 bg-gray-50 rounded-lg border">
+                    {c.prompt && <div><span className="text-gray-400">生成提示词：</span><span className="text-gray-500 font-mono break-all">{c.prompt}</span></div>}
+                    {c.prompt_front && <div><span className="text-gray-400">正面：</span><span className="text-gray-500 font-mono break-all">{c.prompt_front}</span></div>}
+                    {c.prompt_back && <div><span className="text-gray-400">背面：</span><span className="text-gray-500 font-mono break-all">{c.prompt_back}</span></div>}
+                    {c.prompt_overhead && <div><span className="text-gray-400">俯视：</span><span className="text-gray-500 font-mono break-all">{c.prompt_overhead}</span></div>}
+                  </div>
+                </details>
               )}
 
               {/* Subject image */}
@@ -249,21 +247,21 @@ export default function CharacterPanel({ projectId }) {
               ) : (
                 <div className="mt-3 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
                   <div className="text-gray-300 text-2xl mb-1">🖼</div>
-                  <p className="text-xs text-gray-400">主体图占位区域</p>
-                  <p className="text-[10px] text-gray-300 mt-1">正面单人 · 背景干净 · 五官清晰</p>
+                  <p className="text-xs text-gray-400">参考图区域</p>
+                  <p className="text-[10px] text-gray-300 mt-1">生成参考图后将显示在这里</p>
                 </div>
               )}
 
               <div className="mt-2 flex gap-2">
                 <button onClick={() => copyCharPrompt(c)}
                   className="flex-1 border border-blue-200 text-blue-600 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors">
-                  {copiedId === c.id ? "已复制" : "复制提示词"}
+                  {copiedId === c.id ? "已复制" : "复制生成提示词"}
                 </button>
                 <button
                   onClick={() => handleGenerateCharImage(c)}
                   disabled={genStates[c.id] === "generating"}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all">
-                  {genStates[c.id] === "generating" ? "生成中..." : "生成角色图"}
+                  {genStates[c.id] === "generating" ? "生成中..." : "生成参考图"}
                 </button>
               </div>
             </div>
