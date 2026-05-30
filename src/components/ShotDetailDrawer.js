@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import PromptBuilder from "./PromptBuilder";
+import GenerationPanel from "./GenerationPanel";
 
 const TASK_STATUS_CONFIG = {
   queued: { label: "排队中", bg: "bg-gray-100", text: "text-gray-600" },
@@ -11,14 +13,15 @@ const TASK_STATUS_CONFIG = {
   cancelled: { label: "已取消", bg: "bg-gray-100", text: "text-gray-500" },
 };
 
-export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated }) {
+export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated, shotsTotal = 0 }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [polishingImage, setPolishingImage] = useState(false);
   const [polishingVideo, setPolishingVideo] = useState(false);
   const [message, setMessage] = useState(null);
-  const [assets, setAssets] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [viewMode, setViewMode] = useState("detail"); // detail | generate
   const pollingRef = useRef(null);
 
   useEffect(() => {
@@ -49,7 +52,23 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated }
     if (!shot?.id) return;
     loadAssets();
     loadTasks();
+    loadSubjects();
   }, [shot?.id]);
+
+  async function loadSubjects() {
+    try {
+      const [charRes, sceneRes] = await Promise.all([
+        fetch(`/api/characters?project_id=${projectId}`),
+        fetch(`/api/scenes?project_id=${projectId}`),
+      ]);
+      const chars = (await charRes.json()).data || [];
+      const scs = (await sceneRes.json()).data || [];
+      setSubjects([
+        ...chars.map((c) => ({ ...c, type: c.subject_type || "character" })),
+        ...scs.map((s) => ({ ...s, type: s.subject_type || "scene" })),
+      ]);
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
@@ -104,6 +123,19 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated }
   }
 
   function showMessage(text, type) { setMessage({ text, type }); setTimeout(() => setMessage(null), 3000); }
+
+  async function handlePolishPrompt(field, rawPrompt) {
+    if (!rawPrompt?.trim()) { showMessage("请先生成或填写 Prompt", "error"); return; }
+    try {
+      const res = await fetch("/api/polish-prompt", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: field, prompt: rawPrompt, shot: { shot_number: shot.shot_number, scene_name: shot.scene_name, characters: shot.characters } }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "润色失败");
+      if (json.data?.polished) { update(field === "image" ? "refined_image_prompt" : "refined_video_prompt", json.data.polished); showMessage("润色完成", "success"); }
+    } catch (err) { showMessage(err.message, "error"); }
+  }
 
   async function handlePolish(field) {
     const source = field === "image" ? (form.refined_image_prompt || form.image_prompt) : (form.refined_video_prompt || form.video_prompt);
@@ -222,58 +254,42 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated }
 
           <hr />
 
-          {/* Section 2: Prompts */}
+          {/* Section 2: Prompts with PromptBuilder */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">Prompt</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Prompt Builder</h3>
             </div>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-gray-500">Image Prompt</label>
-                  <div className="flex gap-1">
-                    <button onClick={() => handlePolish("image")} disabled={polishingImage}
-                      className="text-xs text-blue-500 hover:underline">{polishingImage ? "润色中..." : "AI 优化"}</button>
-                    <button onClick={() => copyText(form.refined_image_prompt || form.image_prompt)}
-                      className="text-xs text-gray-400 hover:underline">复制</button>
-                  </div>
-                </div>
-                <textarea value={form.image_prompt || ""} onChange={(e) => update("image_prompt", e.target.value)}
-                  rows={3} className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none bg-white" />
-                {form.refined_image_prompt && (
-                  <div className="mt-1">
-                    <label className="text-xs text-green-600 font-medium block mb-1">润色版 Image Prompt</label>
-                    <textarea value={form.refined_image_prompt} onChange={(e) => update("refined_image_prompt", e.target.value)}
-                      rows={3} className="w-full border border-green-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-green-400 resize-none bg-green-50/50" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-gray-500">Video Prompt</label>
-                  <div className="flex gap-1">
-                    <button onClick={() => handlePolish("video")} disabled={polishingVideo}
-                      className="text-xs text-purple-500 hover:underline">{polishingVideo ? "润色中..." : "AI 优化"}</button>
-                    <button onClick={() => copyText(form.refined_video_prompt || form.video_prompt)}
-                      className="text-xs text-gray-400 hover:underline">复制</button>
-                  </div>
-                </div>
-                <textarea value={form.video_prompt || ""} onChange={(e) => update("video_prompt", e.target.value)}
-                  rows={3} className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none bg-white" />
-                {form.refined_video_prompt && (
-                  <div className="mt-1">
-                    <label className="text-xs text-purple-600 font-medium block mb-1">润色版 Video Prompt</label>
-                    <textarea value={form.refined_video_prompt} onChange={(e) => update("refined_video_prompt", e.target.value)}
-                      rows={3} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none bg-purple-50/50" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Negative Prompt</label>
-                <textarea value={form.negative_prompt || ""} onChange={(e) => update("negative_prompt", e.target.value)}
-                  rows={2} placeholder="不想出现的元素..."
-                  className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-red-400 resize-none bg-white" />
-              </div>
+            {/* Image Prompt */}
+            <div className="mb-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+              <p className="text-xs font-medium text-blue-700 mb-2">🖼 Image Prompt</p>
+              <PromptBuilder type="image" subjects={subjects}
+                initialPrompt={form.refined_image_prompt || form.image_prompt || ""}
+                shot={shot}
+                onChange={(v) => update("image_prompt", v)}
+                onPolish={(v) => handlePolishPrompt("image", v)} />
+            </div>
+            {/* Video Prompt */}
+            <div className="mb-4 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+              <p className="text-xs font-medium text-purple-700 mb-2">🎬 Video Prompt</p>
+              <PromptBuilder type="video" subjects={subjects}
+                initialPrompt={form.refined_video_prompt || form.video_prompt || ""}
+                shot={shot}
+                onChange={(v) => update("video_prompt", v)}
+                onPolish={(v) => handlePolishPrompt("video", v)} />
+            </div>
+            {/* Audio Prompt (reserved) */}
+            <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100">
+              <p className="text-xs font-medium text-amber-700 mb-2">🔊 Audio Prompt （预留）</p>
+              <textarea value={form.audio_prompt || ""} onChange={(e) => update("audio_prompt", e.target.value)}
+                rows={2} placeholder="对白 + 音色 + 环境音 + BGM + 情绪..."
+                className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none bg-white" />
+            </div>
+            {/* Negative Prompt */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 block mb-1">Negative Prompt</label>
+              <textarea value={form.negative_prompt || ""} onChange={(e) => update("negative_prompt", e.target.value)}
+                rows={2} placeholder="不想出现的元素..."
+                className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-red-400 resize-none bg-white" />
             </div>
           </div>
 
@@ -365,20 +381,27 @@ export default function ShotDetailDrawer({ shot, projectId, onClose, onUpdated }
         </div>
 
         {/* Bottom actions */}
-        <div className="fixed bottom-0 bg-white border-t p-4 flex gap-2 w-full max-w-lg">
-          <button onClick={handleSave} disabled={saving}
-            className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
-            {saving ? "保存中..." : "保存镜头"}
-          </button>
-          <button onClick={handleGenerateImage}
-            className="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm">
-            生图
-          </button>
-          <button onClick={handleGenerateVideo}
-            className="bg-purple-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm">
-            生视频
-          </button>
-        </div>
+        {viewMode === "detail" ? (
+          <div className="fixed bottom-0 bg-white border-t p-4 flex gap-2 w-full max-w-lg">
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
+              {saving ? "保存中..." : "保存"}
+            </button>
+            <button onClick={() => setViewMode("generate")}
+              className="bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">
+              ⚡ 生成面板
+            </button>
+          </div>
+        ) : (
+          <div className="fixed bottom-0 bg-white border-t p-4 w-full max-w-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">🚀 生成设置</h3>
+              <button onClick={() => setViewMode("detail")}
+                className="text-xs text-gray-500 hover:text-gray-700">&larr; 返回编辑</button>
+            </div>
+            <GenerationPanel shot={shot} projectId={projectId} onGenerated={loadAssets} shotsTotal={shotsTotal} />
+          </div>
+        )}
       </div>
     </div>
   );

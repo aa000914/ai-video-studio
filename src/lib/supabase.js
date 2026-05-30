@@ -27,24 +27,29 @@ const FALLBACK_COLUMNS = {
     "id", "project_id", "name", "role", "age", "personality",
     "appearance", "costume", "prompt", "prohibited_changes",
     "prompt_front", "prompt_back", "prompt_overhead",
-    "subject_image_url", "reference_url", "notes", "created_at",
+    "subject_image_url", "reference_url", "subject_type", "voice_name",
+    "locked_traits", "usage_count", "notes", "created_at",
   ]),
   scenes: new Set([
     "id", "project_id", "name", "location", "time_period",
     "description", "lighting", "style", "prompt", "prohibited_elements",
     "prompt_front", "prompt_back", "prompt_overhead",
-    "subject_image_url", "reference_url", "notes", "created_at",
+    "subject_image_url", "reference_url", "subject_type",
+    "locked_traits", "usage_count", "notes", "created_at",
   ]),
   shots: new Set([
-    "id", "project_id", "shot_number", "duration", "scene_name",
-    "characters", "visual", "camera", "dialogue", "sound",
-    "image_prompt", "video_prompt", "refined_image_prompt", "refined_video_prompt",
-    "negative_prompt",
+    "id", "project_id", "shot_number", "shot_index", "duration", "scene_name",
+    "characters", "visual", "story_text", "camera", "camera_angle", "dialogue", "sound",
+    "image_prompt", "video_prompt", "audio_prompt",
+    "refined_image_prompt", "refined_video_prompt", "negative_prompt",
     "image_url", "video_url", "selected_image_url", "selected_video_url",
+    "selected_image_asset_id", "selected_video_asset_id", "final_asset_id",
+    "episode_number",
     "notes", "status", "created_at",
   ]),
   projects: new Set([
     "id", "title", "type", "platform", "status", "description",
+    "episode_count", "current_episode",
     "created_at", "updated_at",
   ]),
   generation_tasks: new Set([
@@ -54,8 +59,14 @@ const FALLBACK_COLUMNS = {
   ]),
   generated_assets: new Set([
     "id", "project_id", "shot_id", "task_id", "type", "url",
-    "prompt", "model", "provider", "metadata", "is_selected",
+    "prompt", "prompt_snapshot", "model", "provider", "metadata", "params",
+    "is_selected", "is_final",
     "created_at",
+  ]),
+  plan_versions: new Set([
+    "id", "project_id", "version", "summary", "style",
+    "subjects_snapshot", "scenes_snapshot", "shot_script_snapshot",
+    "source_prompt", "created_at",
   ]),
 };
 

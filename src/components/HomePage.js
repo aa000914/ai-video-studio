@@ -547,31 +547,51 @@ export default function HomePageClient({
           }}
         >
           {/* Title */}
-          <div className="text-center mb-5">
+          <div className="text-center mb-4">
             <h1
               className="text-white leading-tight"
               style={{
-                fontSize: "52px",
+                fontSize: "46px",
                 fontWeight: 800,
                 letterSpacing: "-0.5px",
-                textShadow:
-                  "0 2px 40px rgba(99,102,241,0.3)",
+                textShadow: "0 2px 40px rgba(99,102,241,0.3)",
               }}
             >
-              有什么新的故事灵感？ <SparkleSparkle />
+              AI Video Workflow Studio
             </h1>
             <p
-              className="mt-3"
-              style={{
-                fontSize: "16px",
-                color: "rgba(203,213,225,0.8)",
-                maxWidth: "680px",
-                margin: "0 auto",
-              }}
+              className="mt-2"
+              style={{ fontSize: "15px", color: "rgba(203,213,225,0.8)", maxWidth: "720px", margin: "0 auto" }}
             >
-              输入你的故事灵感、风格和分镜要求，AI
-              将为你生成策划案、角色、场景和分镜
+              从创意到成片，统一管理剧本、主体、分镜、Prompt、生成任务和结果资产。
             </p>
+          </div>
+
+          {/* 5 Creation Mode Cards */}
+          <div className="flex justify-center gap-3 mb-5 flex-wrap">
+            {[
+              { key: "idea", icon: "💡", label: "输入灵感", desc: "从创意开始" },
+              { key: "script_upload", icon: "📄", label: "上传剧本", desc: "结构化拆解" },
+              { key: "multi_episode", icon: "📺", label: "多集项目", desc: "系列化制作" },
+              { key: "reference_image", icon: "🖼", label: "参考图", desc: "风格一致性" },
+              { key: "audio_video", icon: "🔊", label: "音画视频", desc: "预留能力" },
+            ].map((item) => (
+              <button key={item.key}
+                onClick={() => {
+                  if (item.key === "multi_episode") setEpisodeCount(5);
+                  if (item.key === "audio_video") setContentType("音画视频");
+                }}
+                className="text-center transition-all hover:-translate-y-1 hover:shadow-lg"
+                style={{
+                  width: "112px", padding: "12px 8px", borderRadius: "16px",
+                  background: "rgba(15,23,42,0.55)", border: "1px solid rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(20px)",
+                }}>
+                <div className="text-xl mb-1">{item.icon}</div>
+                <div className="text-white text-xs font-semibold">{item.label}</div>
+                <div className="text-gray-500 text-[10px] mt-0.5">{item.desc}</div>
+              </button>
+            ))}
           </div>
 
           {/* AI Console Panel */}
