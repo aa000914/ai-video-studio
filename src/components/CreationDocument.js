@@ -75,30 +75,29 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
     if (!prompt.trim()) { showMsg("缺少生图提示词，请先编辑"); return; }
     setGenerating((p) => ({ ...p, [item.id]: true }));
     try {
-      const size = isChar ? "1024*1024" : "1280*720";
-      const res = await fetch("/api/generation/create", {
+      const res = await fetch("/api/generate-reference-image", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, type: "image", prompt: prompt.trim().slice(0, 600), size }),
+        body: JSON.stringify({
+          project_id: projectId,
+          entity_type: isChar ? "character" : "scene",
+          entity_id: item.id,
+          entity_name: item.name,
+          prompt_cn: prompt.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "生成失败");
 
-      if (data.resultUrl) {
-        if (isChar) setCharImages((p) => ({ ...p, [item.id]: data.resultUrl }));
-        else setSceneImages((p) => ({ ...p, [item.id]: data.resultUrl }));
-
-        // Persist: write subject_image_url to character/scene record
-        const endpoint = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
-        try {
-          const putRes = await fetch(endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) });
-          if (!putRes.ok) console.error("[PERSIST_IMAGE_FAILED]", endpoint, putRes.status);
-          else console.log("[PERSIST_IMAGE_OK]", item.name, data.resultUrl?.slice(0, 60));
-        } catch (e) { console.error("[PERSIST_IMAGE_ERROR]", endpoint, e); }
-
+      if (data.imageUrl) {
+        if (isChar) setCharImages((p) => ({ ...p, [item.id]: data.imageUrl }));
+        else setSceneImages((p) => ({ ...p, [item.id]: data.imageUrl }));
+        // Directly update local characters/scenes state for immediate timeline reflection
         if (onUpdateState) onUpdateState();
         showMsg(`${item.name} ${isChar ? "人物" : "场景"}图已生成`);
-      } else {
+      } else if (data.pending) {
         showMsg(`${item.name} 图任务已提交，请稍后刷新`);
+      } else {
+        showMsg(`${item.name} 生成失败: 未获取到图片`);
       }
     } catch (err) { showMsg("生成失败: " + err.message); }
     finally { setGenerating((p) => ({ ...p, [item.id]: false })); }
