@@ -32,6 +32,9 @@ export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImag
   }
 
   async function handleGenerateShots() {
+    if (shots.length > 0) {
+      if (!window.confirm("当前项目已有分镜，是否重新生成？这可能覆盖当前内容。")) return;
+    }
     setGenerating(true); setMessage("");
     try {
       const res = await fetch("/api/generate-shots", {
@@ -57,7 +60,7 @@ export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImag
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-2 items-center">
-          <button onClick={handleGenerateShots} disabled={generating}
+          <button type="button" onClick={handleGenerateShots} disabled={generating}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 shadow-sm">
             {generating ? "AI 生成中..." : "AI 生成分镜"}
           </button>
@@ -154,21 +157,21 @@ function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy }) {
 
       {/* Actions */}
       <div className="px-4 py-3 border-t flex gap-1.5 flex-wrap">
-        <button onClick={onEdit}
+        <button type="button" onClick={onEdit}
           className="border border-gray-300 text-gray-600 px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors">
           编辑
         </button>
-        <button onClick={() => onGenerateImage?.(shot)}
+        <button type="button" onClick={() => onGenerateImage?.(shot)}
           className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition-colors shadow-sm">
           生图
         </button>
-        <button onClick={() => onGenerateVideo?.(shot)}
+        <button type="button" onClick={() => onGenerateVideo?.(shot)}
           className="bg-purple-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-700 transition-colors shadow-sm">
           生视频
         </button>
-        <button onClick={onEdit}
+        <button type="button" onClick={onEdit}
           className="border border-gray-200 text-gray-500 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors"
-          title="点击编辑查看候选结果">
+          title="查看候选结果与资产">
           查看资产
         </button>
       </div>

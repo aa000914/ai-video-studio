@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-export default function CreationDocument({ projectId }) {
+export default function CreationDocument({ projectId, onEnterEditor }) {
   const [plan, setPlan] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
@@ -136,10 +136,10 @@ export default function CreationDocument({ projectId }) {
       {/* Bottom: enter editor */}
       {shots.length > 0 && (
         <div className="px-4 py-4 border-t border-white/5">
-          <a href={`/projects/${projectId}?mode=editor`}
+          <button type="button" onClick={() => onEnterEditor?.()}
             className="block w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 text-center transition-colors">
             进入分镜编辑器
-          </a>
+          </button>
         </div>
       )}
     </div>

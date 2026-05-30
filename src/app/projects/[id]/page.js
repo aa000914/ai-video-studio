@@ -70,18 +70,20 @@ export default function ProjectDetailPage() {
           </h1>
         </div>
         <div className="flex gap-2 items-center">
-          <button onClick={() => setMode("doc")}
+          <button type="button" onClick={() => setMode("doc")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mode === "doc" ? "bg-indigo-600 text-white shadow-sm" : mode === "doc" ? "" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-            style={mode !== "doc" ? {} : {}}>
-            {mode === "doc" ? <span className="inline-flex items-center gap-1.5">📄 策划文档</span> : <span className="inline-flex items-center gap-1.5">📄 策划文档</span>}
+              mode === "doc"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : (mode === "editor" ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-gray-800 text-gray-300 hover:bg-gray-700")
+            }`}>
+            📄 策划文档
           </button>
-          <button onClick={() => setMode("editor")}
+          <button type="button" onClick={() => setMode("editor")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mode === "editor" ? "bg-indigo-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-            style={mode === "editor" ? {} : {}}>
+              mode === "editor"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : (mode === "doc" ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-gray-800 text-gray-300 hover:bg-gray-700")
+            }`}>
             🎬 分镜编辑器
           </button>
         </div>
@@ -94,7 +96,7 @@ export default function ProjectDetailPage() {
             <CreationTimeline />
           </div>
           <div className="w-[66%]">
-            <CreationDocument projectId={projectId} />
+            <CreationDocument projectId={projectId} onEnterEditor={() => setMode("editor")} />
           </div>
         </div>
       )}

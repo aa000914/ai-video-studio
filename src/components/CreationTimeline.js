@@ -59,13 +59,14 @@ export default function CreationTimeline({ stages = [], progress = 0 }) {
       </div>
 
       {/* Bottom input */}
-      <div className="px-4 py-4 border-t border-white/5">
-        <textarea placeholder="输入修改意见，继续调整策划案..." rows={2}
+      <form onSubmit={(e) => { e.preventDefault(); const v = e.target.feedback?.value?.trim(); if (!v) { alert("请输入修改意见"); return; } alert("已收到修改意见，后续将用于重新生成策划案。"); e.target.feedback.value = ""; }}
+        className="px-4 py-4 border-t border-white/5">
+        <textarea name="feedback" placeholder="输入修改意见，继续调整策划案..." rows={2}
           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none" />
-        <button className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
+        <button type="submit" className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
           发送修改意见
         </button>
-      </div>
+      </form>
     </div>
   );
 }
