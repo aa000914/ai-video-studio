@@ -16,23 +16,34 @@ function getApiKey() {
 
 export async function callQwenText(messages, options = {}) {
   const { temperature = 0.7, maxTokens = 4096, model = MODEL } = options;
+  const routeName = options._route || "unknown";
 
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
-  });
+  console.log(`[QWEN_TEXT_CALL] model=${model} route=${routeName} msgs=${messages.length}`);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Qwen API error (${res.status}): ${err}`);
+  try {
+    const res = await fetch(`${BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getApiKey()}`,
+      },
+      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.log(`[QWEN_TEXT_ERROR] model=${model} status=${res.status} err=${err.slice(0, 200)}`);
+      throw new Error(`Qwen API error (${res.status}): ${err.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    console.log(`[QWEN_TEXT_OK] model=${model} len=${content.length}`);
+    return content;
+  } catch (e) {
+    console.log(`[QWEN_TEXT_ERROR] model=${model} error=${e.message}`);
+    throw e;
   }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
 }
 
 /** 解析 JSON 响应（兼容 markdown 代码块） */

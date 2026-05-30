@@ -6,7 +6,7 @@
 import { callQwenText, parseJsonResponse } from "./qwen";
 
 export async function callDeepSeek(messages, options = {}) {
-  return callQwenText(messages, options);
+  return callQwenText(messages, { ...options, _route: "deepseek-shim" });
 }
 
 export { parseJsonResponse };
