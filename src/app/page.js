@@ -1,6 +1,8 @@
 import { getServiceClient } from "@/lib/supabase";
 import HomePageClient from "@/components/HomePage";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   let projects = [];
   let error = "";

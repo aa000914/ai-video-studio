@@ -19,6 +19,7 @@ export default function ProjectDetailPage() {
   const [shotsList, setShotsList] = useState([]);
   const [message, setMessage] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
+  const [projectState, setProjectState] = useState({});
 
   const projectId = params.id;
 
@@ -42,7 +43,27 @@ export default function ProjectDetailPage() {
     } catch { /* ignore */ }
   }, [projectId]);
 
-  useEffect(() => { loadProject(); loadShots(); }, [loadProject, loadShots]);
+  useEffect(() => { loadProject(); loadShots(); loadState(); }, [loadProject, loadShots]);
+
+  async function loadState() {
+    try {
+      const [planRes, charRes, sceneRes] = await Promise.all([
+        fetch(`/api/plans?project_id=${projectId}`),
+        fetch(`/api/characters?project_id=${projectId}`),
+        fetch(`/api/scenes?project_id=${projectId}`),
+      ]);
+      const [p, c, s] = await Promise.all([planRes.json(), charRes.json(), sceneRes.json()]);
+      const chars = c.data || []; const scs = s.data || [];
+      setProjectState({
+        hasPlan: !!p.data,
+        hasChars: chars.length > 0,
+        hasCharImages: chars.some((ch) => ch.subject_image_url),
+        hasScenes: scs.length > 0,
+        hasSceneImages: scs.some((sc) => sc.subject_image_url),
+        hasShots: shotsList.length > 0,
+      });
+    } catch { /* ignore */ }
+  }
 
   // ---- 保存分镜 handler ----
   function handleSaveShot(updatedShot) {
@@ -126,7 +147,7 @@ export default function ProjectDetailPage() {
       {mode === "doc" && (
         <div className="flex-1 flex min-h-0">
           <div className="w-[34%] border-r border-white/5">
-            <CreationTimeline />
+            <CreationTimeline projectState={projectState} />
           </div>
           <div className="w-[66%]">
             <CreationDocument projectId={projectId} onEnterEditor={() => setMode("editor")} />

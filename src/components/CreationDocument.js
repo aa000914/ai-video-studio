@@ -8,11 +8,13 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
   const [scenes, setScenes] = useState([]);
   const [shots, setShots] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Track generated images per subject
-  const [charImages, setCharImages] = useState({});  // { charId: "url" }
-  const [sceneImages, setSceneImages] = useState({}); // { sceneId: "url" }
-  const [generating, setGenerating] = useState({});    // { charId: true } or { sceneId: true }
+  const [charImages, setCharImages] = useState({});
+  const [sceneImages, setSceneImages] = useState({});
+  const [generating, setGenerating] = useState({});
   const [msg, setMsg] = useState("");
+  // Custom prompts
+  const [customPrompts, setCustomPrompts] = useState({}); // { charId: "custom prompt", sceneId: "custom prompt" }
+  const [editingPrompt, setEditingPrompt] = useState(null); // { type, id, name, current }
 
   function showMsg(t) { setMsg(t); setTimeout(() => setMsg(""), 3000); }
 
@@ -34,14 +36,12 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
       setScenes(s.data || []);
       setShots((sh.data || []).sort((a, b) => (a.shot_number || 0) - (b.shot_number || 0)));
 
-      // Restore existing images from assets
       const assets = a.data || [];
       const ci = {}; const si = {};
       assets.forEach((ast) => {
-        if (ast.metadata?.subject_type === "character" && ast.metadata?.subject_id) ci[ast.metadata.subject_id] = ast.url;
-        if (ast.metadata?.subject_type === "scene" && ast.metadata?.subject_id) si[ast.metadata.subject_id] = ast.url;
+        if (ast.metadata?.target_type === "character" && ast.metadata?.target_id) ci[ast.metadata.target_id] = ast.url;
+        if (ast.metadata?.target_type === "scene" && ast.metadata?.target_id) si[ast.metadata.target_id] = ast.url;
       });
-      // Also check subject_image_url
       (c.data || []).forEach((ch) => { if (ch.subject_image_url) ci[ch.id] = ch.subject_image_url; });
       (s.data || []).forEach((sc) => { if (sc.subject_image_url) si[sc.id] = sc.subject_image_url; });
       setCharImages(ci); setSceneImages(si);
@@ -49,81 +49,63 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
     finally { setLoading(false); }
   }
 
-  // Generate reference image for a character
-  async function handleGenCharImage(char) {
-    const prompt = char.prompt_front || char.prompt || `${char.name}, ${char.appearance || ""}, ${char.costume || ""} — character reference`;
-    if (!prompt.trim()) { showMsg("缺少角色描述，无法生成参考图"); return; }
-    setGenerating((p) => ({ ...p, [char.id]: true }));
-    try {
-      const res = await fetch("/api/generation/create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, type: "image", prompt: prompt.trim().slice(0, 600), size: "1024*1024" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "生成失败");
-
-      if (data.resultUrl) {
-        setCharImages((p) => ({ ...p, [char.id]: data.resultUrl }));
-        // Persist to character record so it survives refresh
-        try { await fetch(`/api/characters/${char.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
-        showMsg(`${char.name} 参考图已生成`);
-      } else {
-        showMsg(`${char.name} 参考图任务已提交，请稍后刷新查看`);
-      }
-    } catch (err) { showMsg("生成失败: " + err.message); }
-    finally { setGenerating((p) => ({ ...p, [char.id]: false })); }
+  function getGenPrompt(item, isChar) {
+    const custom = customPrompts[item.id];
+    if (custom) return custom;
+    if (isChar) return item.prompt || `角色:${item.name}, 外貌:${item.appearance || ""}, 服装:${item.costume || ""}`;
+    return item.prompt || `${item.name}, ${item.description || ""}, ${item.lighting || ""}`;
   }
 
-  async function handleGenSceneImage(scene) {
-    const prompt = scene.prompt_front || scene.prompt || `${scene.name}, ${scene.description || ""} — scene reference, ${scene.lighting || ""}`;
-    if (!prompt.trim()) { showMsg("缺少场景描述，无法生成场景图"); return; }
-    setGenerating((p) => ({ ...p, [scene.id]: true }));
+  async function handleGenImage(item, isChar) {
+    const prompt = getGenPrompt(item, isChar);
+    if (!prompt.trim()) { showMsg("缺少生图提示词，请先编辑"); return; }
+    setGenerating((p) => ({ ...p, [item.id]: true }));
     try {
+      const size = isChar ? "1024*1024" : "1280*720";
       const res = await fetch("/api/generation/create", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, type: "image", prompt: prompt.trim().slice(0, 600), size: "1280*720" }),
+        body: JSON.stringify({ projectId, type: "image", prompt: prompt.trim().slice(0, 600), size }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "生成失败");
 
       if (data.resultUrl) {
-        setSceneImages((p) => ({ ...p, [scene.id]: data.resultUrl }));
-        try { await fetch(`/api/scenes/${scene.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
-        showMsg(`${scene.name} 场景图已生成`);
+        if (isChar) setCharImages((p) => ({ ...p, [item.id]: data.resultUrl }));
+        else setSceneImages((p) => ({ ...p, [item.id]: data.resultUrl }));
+
+        // Persist to DB
+        const url = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
+        try { await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
+        showMsg(`${item.name} ${isChar ? "人物" : "场景"}图已生成`);
       } else {
-        showMsg(`${scene.name} 场景图任务已提交，请稍后刷新查看`);
+        showMsg(`${item.name} 图任务已提交，请稍后刷新`);
       }
     } catch (err) { showMsg("生成失败: " + err.message); }
-    finally { setGenerating((p) => ({ ...p, [scene.id]: false })); }
+    finally { setGenerating((p) => ({ ...p, [item.id]: false })); }
   }
 
   if (loading) return <div className="flex items-center justify-center h-full text-sm text-gray-500">加载策划文档...</div>;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
       <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
         <div>
           <h2 className="text-white font-semibold text-sm">策划文档</h2>
           <p className="text-gray-500 text-xs mt-0.5">内容由 AI 生成</p>
         </div>
         <button type="button" onClick={loadAll}
-          className="text-xs text-gray-500 hover:text-gray-300 border border-white/10 rounded-lg px-3 py-1.5">
-          刷新
-        </button>
+          className="text-xs text-gray-500 hover:text-gray-300 border border-white/10 rounded-lg px-3 py-1.5">刷新</button>
       </div>
 
       {msg && <div className="mx-6 mt-3 bg-indigo-500/20 text-indigo-300 px-3 py-2 rounded-lg text-xs">{msg}</div>}
 
       <div className="flex-1 overflow-auto px-6 py-5 space-y-6">
-        {/* 1. 剧本 */}
         {plan?.script_text && (
           <Section title="剧本内容">
             <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{plan.script_text}</p>
           </Section>
         )}
 
-        {/* 2. 风格 */}
         {plan && (
           <Section title="美术风格">
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -135,32 +117,37 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           </Section>
         )}
 
-        {/* 3. 主体列表 + 参考图 */}
+        {/* 人物列表 */}
         {characters.length > 0 && (
-          <Section title={`主体列表（${characters.length}）`}>
+          <Section title={`人物列表（${characters.length}）`}>
             <div className="grid gap-4 md:grid-cols-2">
               {characters.map((c) => (
                 <div key={c.id} className="bg-white/5 rounded-xl p-3">
                   <div className="flex gap-3 items-start">
-                    {/* Reference image */}
                     {charImages[c.id] ? (
                       <img src={charImages[c.id]} alt={c.name} className="w-20 h-20 rounded-lg object-cover shrink-0 border border-white/10" />
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">
-                        暂无参考图
+                    ) : generating[c.id] ? (
+                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
+                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">暂无参考图</div>
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white">{c.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{c.role} · {c.age}</p>
                       {c.personality && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{c.personality}</p>}
-                      {c.appearance && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{c.appearance}</p>}
-                      <button type="button"
-                        onClick={() => handleGenCharImage(c)}
-                        disabled={generating[c.id]}
-                        className="mt-2 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                        {generating[c.id] ? "生成中..." : charImages[c.id] ? "重新生成" : "生成参考图"}
-                      </button>
+                      <div className="flex gap-1.5 mt-2">
+                        <button type="button"
+                          onClick={() => setEditingPrompt({ type: "character", id: c.id, name: c.name, current: getGenPrompt(c, true) })}
+                          className="text-xs text-gray-400 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5">编辑提示词</button>
+                        <button type="button"
+                          onClick={() => handleGenImage(c, true)}
+                          disabled={generating[c.id]}
+                          className="bg-indigo-600 text-white px-2 py-1 rounded-lg text-xs hover:bg-indigo-700 disabled:opacity-50">
+                          {generating[c.id] ? "生成中..." : "生成人物图"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -169,7 +156,7 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           </Section>
         )}
 
-        {/* 4. 场景列表 + 场景图 */}
+        {/* 场景列表 */}
         {scenes.length > 0 && (
           <Section title={`场景列表（${scenes.length}）`}>
             <div className="grid gap-4 md:grid-cols-2">
@@ -178,22 +165,28 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
                   <div className="flex gap-3 items-start">
                     {sceneImages[s.id] ? (
                       <img src={sceneImages[s.id]} alt={s.name} className="w-20 h-20 rounded-lg object-cover shrink-0 border border-white/10" />
-                    ) : (
-                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">
-                        暂无场景图
+                    ) : generating[s.id] ? (
+                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
+                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-white/5 flex items-center justify-center text-gray-600 text-xs shrink-0 border border-white/5">暂无场景图</div>
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white">{s.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{s.location} · {s.time_period}</p>
                       {s.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{s.description}</p>}
-                      {s.lighting && <p className="text-xs text-gray-500">氛围：{s.lighting}</p>}
-                      <button type="button"
-                        onClick={() => handleGenSceneImage(s)}
-                        disabled={generating[s.id]}
-                        className="mt-2 bg-teal-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-teal-700 disabled:opacity-50 transition-all">
-                        {generating[s.id] ? "生成中..." : sceneImages[s.id] ? "重新生成" : "生成场景图"}
-                      </button>
+                      <div className="flex gap-1.5 mt-2">
+                        <button type="button"
+                          onClick={() => setEditingPrompt({ type: "scene", id: s.id, name: s.name, current: getGenPrompt(s, false) })}
+                          className="text-xs text-gray-400 border border-white/10 rounded-lg px-2 py-1 hover:bg-white/5">编辑提示词</button>
+                        <button type="button"
+                          onClick={() => handleGenImage(s, false)}
+                          disabled={generating[s.id]}
+                          className="bg-teal-600 text-white px-2 py-1 rounded-lg text-xs hover:bg-teal-700 disabled:opacity-50">
+                          {generating[s.id] ? "生成中..." : "生成场景图"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -202,7 +195,6 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           </Section>
         )}
 
-        {/* 5. 分镜脚本 */}
         {shots.length > 0 && (
           <Section title={`分镜脚本（${shots.length} 个镜头）`}>
             <div className="space-y-2">
@@ -226,7 +218,6 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
         )}
       </div>
 
-      {/* Bottom: enter editor */}
       {shots.length > 0 && (
         <div className="px-4 py-4 border-t border-white/5">
           <button type="button" onClick={() => onEnterEditor?.()}
@@ -235,24 +226,58 @@ export default function CreationDocument({ projectId, onEnterEditor }) {
           </button>
         </div>
       )}
+
+      {/* Prompt Edit Modal */}
+      {editingPrompt && (
+        <PromptEditModal
+          title={`编辑 ${editingPrompt.name} 生图提示词`}
+          initialPrompt={editingPrompt.current}
+          onClose={() => setEditingPrompt(null)}
+          onSave={(v) => {
+            setCustomPrompts((p) => ({ ...p, [editingPrompt.id]: v }));
+            if (editingPrompt.type === "character") {
+              try { fetch(`/api/characters/${editingPrompt.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: v }) }); } catch {}
+            } else {
+              try { fetch(`/api/scenes/${editingPrompt.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: v }) }); } catch {}
+            }
+            setEditingPrompt(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function Section({ title, children }) {
-  return (
-    <div>
-      <h3 className="text-sm font-semibold text-white mb-3">{title}</h3>
-      {children}
-    </div>
-  );
+  return <div><h3 className="text-sm font-semibold text-white mb-3">{title}</h3>{children}</div>;
 }
 
 function KV({ k, v }) {
+  return <div><span className="text-gray-500 text-xs">{k}：</span><span className="text-gray-300 text-xs">{v || "—"}</span></div>;
+}
+
+function PromptEditModal({ title, initialPrompt, onClose, onSave }) {
+  const [val, setVal] = useState(initialPrompt || "");
+
   return (
-    <div>
-      <span className="text-gray-500 text-xs">{k}：</span>
-      <span className="text-gray-300 text-xs">{v || "—"}</span>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-32 bg-black/60 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md border border-white/10"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+          <h3 className="text-white text-sm font-semibold">{title}</h3>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg">&times;</button>
+        </div>
+        <div className="px-5 py-4">
+          <textarea value={val} onChange={(e) => setVal(e.target.value)}
+            rows={5} placeholder="输入生图提示词..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none" />
+        </div>
+        <div className="px-5 py-4 border-t border-white/10 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 border border-white/10 text-gray-300 py-2 rounded-lg text-sm hover:bg-white/5">取消</button>
+          <button type="button" onClick={() => onSave(val)} className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">保存</button>
+        </div>
+      </div>
     </div>
   );
 }
