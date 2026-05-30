@@ -12,13 +12,17 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [project, setProject] = useState(null);
-  const [mode, setMode] = useState("doc"); // doc | editor
+  const [mode, setMode] = useState("doc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detailShot, setDetailShot] = useState(null);
   const [shotsList, setShotsList] = useState([]);
+  const [message, setMessage] = useState("");
+  const [generatingId, setGeneratingId] = useState(null);
 
   const projectId = params.id;
+
+  function showMsg(text) { setMessage(text); setTimeout(() => setMessage(""), 3000); }
 
   const loadProject = useCallback(async () => {
     try {
@@ -40,6 +44,46 @@ export default function ProjectDetailPage() {
 
   useEffect(() => { loadProject(); loadShots(); }, [loadProject, loadShots]);
 
+  // ---- 生图 handler ----
+  async function handleGenerateImage(shot) {
+    if (!shot?.id) { showMsg("分镜数据异常"); return; }
+    const prompt = shot.refined_image_prompt || shot.image_prompt || shot.visual || "";
+    if (!prompt.trim()) { showMsg("当前分镜缺少画面描述，无法生成图片。请先编辑分镜填写画面描述。"); return; }
+    setGeneratingId(shot.id);
+    try {
+      const res = await fetch("/api/generation/create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, shotId: shot.id, type: "image", prompt: prompt.trim().slice(0, 600), size: "1280*720" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "提交失败");
+      if (data.status === "succeeded") showMsg("图片生成完成！可在资产库查看。");
+      else showMsg("图片生成任务已提交，请到任务页查看进度。");
+      loadShots();
+    } catch (err) { showMsg("生图失败: " + err.message); }
+    finally { setGeneratingId(null); }
+  }
+
+  // ---- 生视频 handler ----
+  async function handleGenerateVideo(shot) {
+    if (!shot?.id) { showMsg("分镜数据异常"); return; }
+    const imageUrl = shot.selected_image_url || shot.image_url;
+    if (!imageUrl) { showMsg("请先生成或选择首帧图，再生成视频。"); return; }
+    const prompt = shot.refined_video_prompt || shot.video_prompt || "Generate video from this image";
+    setGeneratingId(shot.id);
+    try {
+      const res = await fetch("/api/generation/create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, shotId: shot.id, type: "i2v", prompt: prompt.trim().slice(0, 600), imageUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "提交失败");
+      showMsg("视频生成任务已提交，请到任务页查看进度。");
+      loadShots();
+    } catch (err) { showMsg("生视频失败: " + err.message); }
+    finally { setGeneratingId(null); }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-full bg-[#0a0f1e] text-gray-400 text-sm">加载中...</div>;
   }
@@ -49,7 +93,8 @@ export default function ProjectDetailPage() {
       <div className="flex items-center justify-center h-full bg-[#0a0f1e]">
         <div className="text-center">
           <p className="text-red-400 text-sm mb-4">{error}</p>
-          <button onClick={() => router.push("/")} className="text-indigo-400 text-sm hover:underline">返回首页</button>
+          <button type="button" onClick={() => { setError(""); loadProject(); }} className="text-indigo-400 text-sm hover:underline mr-3">重试</button>
+          <button type="button" onClick={() => router.push("/")} className="text-indigo-400 text-sm hover:underline">返回首页</button>
         </div>
       </div>
     );
@@ -61,7 +106,7 @@ export default function ProjectDetailPage() {
       <div className="shrink-0 flex items-center justify-between px-6 py-3"
         style={{ background: mode === "doc" ? "rgba(255,255,255,0.03)" : "white", borderBottom: mode === "doc" ? "1px solid rgba(255,255,255,0.06)" : "1px solid #e5e7eb" }}>
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push("/")}
+          <button type="button" onClick={() => router.push("/")}
             className="text-xs text-gray-500 hover:text-gray-300">
             &larr; 首页
           </button>
@@ -72,22 +117,25 @@ export default function ProjectDetailPage() {
         <div className="flex gap-2 items-center">
           <button type="button" onClick={() => setMode("doc")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mode === "doc"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : (mode === "editor" ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-gray-800 text-gray-300 hover:bg-gray-700")
+              mode === "doc" ? "bg-indigo-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}>
             📄 策划文档
           </button>
           <button type="button" onClick={() => setMode("editor")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mode === "editor"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : (mode === "doc" ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-gray-800 text-gray-300 hover:bg-gray-700")
+              mode === "editor" ? "bg-indigo-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}>
             🎬 分镜编辑器
           </button>
         </div>
       </div>
+
+      {/* Message toast */}
+      {message && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm max-w-sm animate-pulse">
+          {message}
+        </div>
+      )}
 
       {/* Mode: 策划文档 */}
       {mode === "doc" && (
@@ -108,8 +156,9 @@ export default function ProjectDetailPage() {
             <ShotBoardPanel
               projectId={projectId}
               onOpenDetail={setDetailShot}
-              onGenerateImage={loadShots}
-              onGenerateVideo={loadShots}
+              onGenerateImage={handleGenerateImage}
+              onGenerateVideo={handleGenerateVideo}
+              generatingId={generatingId}
             />
           </div>
           {shotsList.length > 0 && (

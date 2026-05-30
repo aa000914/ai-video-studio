@@ -10,7 +10,7 @@ const STATUS_CONFIG = {
   "已通过": "bg-green-100 text-green-700",
 };
 
-export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImage, onGenerateVideo }) {
+export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImage, onGenerateVideo, generatingId }) {
   const [shots, setShots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -86,6 +86,7 @@ export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImag
               onGenerateImage={() => onGenerateImage?.(s)}
               onGenerateVideo={() => onGenerateVideo?.(s)}
               onCopy={copyText}
+              generating={generatingId === s.id}
             />
           ))}
         </div>
@@ -94,7 +95,7 @@ export default function ShotBoardPanel({ projectId, onOpenDetail, onGenerateImag
   );
 }
 
-function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy }) {
+function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy, generating }) {
   const statusClass = STATUS_CONFIG[shot.status] || "bg-gray-100 text-gray-600";
 
   return (
@@ -161,13 +162,13 @@ function ShotCard({ shot, onEdit, onGenerateImage, onGenerateVideo, onCopy }) {
           className="border border-gray-300 text-gray-600 px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors">
           编辑
         </button>
-        <button type="button" onClick={() => onGenerateImage?.(shot)}
-          className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition-colors shadow-sm">
-          生图
+        <button type="button" onClick={() => onGenerateImage?.(shot)} disabled={generating}
+          className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
+          {generating ? "生成中..." : "生图"}
         </button>
-        <button type="button" onClick={() => onGenerateVideo?.(shot)}
-          className="bg-purple-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-700 transition-colors shadow-sm">
-          生视频
+        <button type="button" onClick={() => onGenerateVideo?.(shot)} disabled={generating}
+          className="bg-purple-600 text-white px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-sm">
+          {generating ? "生成中..." : "生视频"}
         </button>
         <button type="button" onClick={onEdit}
           className="border border-gray-200 text-gray-500 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-50 transition-colors"
