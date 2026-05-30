@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ImagePreviewModal from "./ImagePreviewModal";
+import { getSubjectImageUrl, resolveAssetUrl, buildCharPromptCN, buildScenePromptCN } from "@/lib/asset-resolver";
 
 export default function CreationDocument({ projectId, onEnterEditor, onUpdateState }) {
   const [plan, setPlan] = useState(null);
@@ -40,12 +41,15 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
 
       const assets = a.data || [];
       const ci = {}; const si = {};
-      assets.forEach((ast) => {
-        if (ast.metadata?.target_type === "character" && ast.metadata?.target_id) ci[ast.metadata.target_id] = ast.url;
-        if (ast.metadata?.target_type === "scene" && ast.metadata?.target_id) si[ast.metadata.target_id] = ast.url;
+      // Resolve images using unified resolver
+      (c.data || []).forEach((ch) => {
+        const url = getSubjectImageUrl(ch, assets);
+        if (url) ci[ch.id] = url;
       });
-      (c.data || []).forEach((ch) => { if (ch.subject_image_url) ci[ch.id] = ch.subject_image_url; });
-      (s.data || []).forEach((sc) => { if (sc.subject_image_url) si[sc.id] = sc.subject_image_url; });
+      (s.data || []).forEach((sc) => {
+        const url = getSubjectImageUrl(sc, assets);
+        if (url) si[sc.id] = url;
+      });
       setCharImages(ci); setSceneImages(si);
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -54,8 +58,10 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
   function getGenPrompt(item, isChar) {
     const custom = customPrompts[item.id];
     if (custom) return custom;
-    if (isChar) return item.prompt || `角色:${item.name}, 外貌:${item.appearance || ""}, 服装:${item.costume || ""}`;
-    return item.prompt || `${item.name}, ${item.description || ""}, ${item.lighting || ""}`;
+    // Use metadata.prompt_cn or build from attributes
+    const savedCN = item.metadata?.prompt_cn || item.visual_prompt_cn || "";
+    if (savedCN) return savedCN;
+    return isChar ? buildCharPromptCN(item) : buildScenePromptCN(item);
   }
 
   async function handleGenImage(item, isChar) {
@@ -75,9 +81,23 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
         if (isChar) setCharImages((p) => ({ ...p, [item.id]: data.resultUrl }));
         else setSceneImages((p) => ({ ...p, [item.id]: data.resultUrl }));
 
-        // Persist to DB
-        const url = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
-        try { await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) }); } catch {}
+        // Persist: write to subject record + generated_asset metadata
+        const endpoint = isChar ? `/api/characters/${item.id}` : `/api/scenes/${item.id}`;
+        try {
+          const putRes = await fetch(endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_image_url: data.resultUrl }) });
+          if (!putRes.ok) console.error("PUT subject_image_url failed:", putRes.status);
+        } catch (e) { console.error("PUT subject_image_url error:", e); }
+
+        // Also update generated_asset metadata if task created
+        if (data.generationTaskId) {
+          try {
+            await fetch(`/api/generated-assets/${data.generationTaskId}`, {
+              method: "PUT", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ metadata: { target_type: isChar ? "character" : "scene", target_id: item.id, target_name: item.name, source: "creation_document" } }),
+            });
+          } catch (e) { console.error("PUT asset metadata error:", e); }
+        }
+
         if (onUpdateState) onUpdateState();
         showMsg(`${item.name} ${isChar ? "人物" : "场景"}图已生成`);
       } else {
@@ -248,11 +268,10 @@ export default function CreationDocument({ projectId, onEnterEditor, onUpdateSta
           onClose={() => setEditingPrompt(null)}
           onSave={(v) => {
             setCustomPrompts((p) => ({ ...p, [editingPrompt.id]: v }));
-            if (editingPrompt.type === "character") {
-              try { fetch(`/api/characters/${editingPrompt.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: v }) }); } catch {}
-            } else {
-              try { fetch(`/api/scenes/${editingPrompt.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: v }) }); } catch {}
-            }
+            const endpoint = editingPrompt.type === "character" ? `/api/characters/${editingPrompt.id}` : `/api/scenes/${editingPrompt.id}`;
+            try {
+              fetch(endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: v, metadata: { prompt_cn: v } }) });
+            } catch (e) { console.error("PUT prompt error:", e); }
             setEditingPrompt(null);
           }}
         />
