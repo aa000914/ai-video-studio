@@ -464,7 +464,9 @@ export default function HomePageClient({
             "radial-gradient(ellipse 60% 40% at 20% 60%, rgba(139,92,246,0.12), transparent), " +
             "radial-gradient(ellipse 60% 40% at 80% 40%, rgba(59,130,246,0.12), transparent), " +
             "linear-gradient(180deg, #0a0f2c 0%, #0d1137 40%, #111840 100%)",
-          minHeight: "520px",
+          minHeight: "auto",
+          paddingTop: "56px",
+          paddingBottom: "120px",
         }}
       >
         {/* Tech light beams */}
@@ -542,8 +544,8 @@ export default function HomePageClient({
         <div
           className="relative mx-auto"
           style={{
-            maxWidth: "1100px",
-            padding: "60px 32px 0",
+            maxWidth: "1120px",
+            padding: "0 32px",
           }}
         >
           {/* Title */}
@@ -616,7 +618,7 @@ export default function HomePageClient({
               placeholder={PLACEHOLDER}
               className="w-full bg-transparent border-none text-white placeholder-gray-500 focus:outline-none resize-none"
               style={{
-                height: "110px",
+                height: "180px",
                 fontSize: "15px",
                 lineHeight: "1.7",
               }}
@@ -857,8 +859,8 @@ export default function HomePageClient({
         >
           {/* ===== Capability Cards ===== */}
           <div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            style={{ marginTop: "-48px", position: "relative", zIndex: 20 }}
+            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            style={{ marginTop: "-56px", position: "relative", zIndex: 10 }}
           >
             {FLOW_CARDS.map((card) => {
               const Icon = card.icon;
@@ -912,7 +914,7 @@ export default function HomePageClient({
           </div>
 
           {/* ===== Tabs ===== */}
-          <div className="flex items-center justify-between pt-12 pb-5">
+          <div className="flex items-center justify-between pt-20 pb-5">
             <div className="flex items-center gap-8">
               <button
                 onClick={() =>
