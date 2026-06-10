@@ -9,9 +9,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN">
-      <body className="h-screen flex">
+      <body className="min-h-screen">
         <Sidebar />
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="min-h-screen" style={{ marginLeft: "280px" }}>{children}</main>
       </body>
     </html>
   );

@@ -64,15 +64,18 @@ export function getSubjectImageUrl(subject, assets = []) {
 
 /**
  * 根据人物属性拼接中文提示词
+ * V2.8: 加入全身完整入镜、角色设定图等要求
  */
 export function buildCharPromptCN(char) {
   if (!char) return "";
-  const parts = [char.name];
+  const parts = [`生成一张人物角色参考图：${char.name}`];
+  if (char.age) parts.push(`${char.age}岁`);
   if (char.role) parts.push(char.role);
-  if (char.age) parts.push(char.age + "岁");
-  if (char.personality) parts.push(char.personality);
+  if (char.description || char.personality) parts.push(char.description || char.personality);
   if (char.appearance) parts.push(char.appearance);
-  if (char.costume) parts.push(" 服装：" + char.costume);
+  if (char.costume) parts.push("服装：" + char.costume);
+  // Always append body/quality requirements
+  parts.push("要求：单人全身像，从头到脚完整入镜，身体不要被裁切，正面或三分之二侧身站姿，干净背景，服装和面部特征清晰，电影级写实风格，角色设定图");
   return parts.join("，");
 }
 

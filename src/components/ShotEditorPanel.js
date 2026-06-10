@@ -24,8 +24,9 @@ const IMAGE_MODEL_HINTS = {
   "wan2.7-image": "回退生图模型（50/50免费额度）",
 };
 const VIDEO_MODELS = [
-  { value: "wan2.7-t2v", label: "文生视频 (40/50免费)" },
-  { value: "wan2.7-i2v-2026-04-25", label: "图生视频 (50/50免费)" },
+  { value: "happyhorse-1.0-video", label: "HappyHorse 全能视频（推荐）" },
+  { value: "wan2.7-t2v", label: "WAN 文生视频 (40/50免费)" },
+  { value: "wan2.7-i2v-2026-04-25", label: "WAN 图生视频 (50/50免费)" },
   { value: "wan2.7-videoedit", label: "WAN 视频编辑 (50/50免费)" },
   { value: "happyhorse-1.0-video-edit", label: "HappyHorse 编辑 (10/10免费·谨慎使用)" },
 ];
@@ -49,7 +50,7 @@ export default function ShotEditorPanel({ projectId }) {
 
   // Model / resolution / duration config
   const [imageModel, setImageModel] = useState("wan2.7-image-pro");
-  const [videoModel, setVideoModel] = useState("wan2.7-t2v");
+  const [videoModel, setVideoModel] = useState("happyhorse-1.0-video");
   const [resolution, setResolution] = useState("720P");
   const [videoDuration, setVideoDuration] = useState("5s");
   const [aspectRatio, setAspectRatio] = useState("16:9");
@@ -833,7 +834,7 @@ export default function ShotEditorPanel({ projectId }) {
                 disabled={genState.videoStatus === "submitting" || genState.videoStatus === "running"}
                 className="w-full border border-purple-300 text-purple-700 py-2 rounded text-xs font-medium hover:bg-purple-50 disabled:opacity-50 transition-all">
                 {genState.videoStatus === "running" ? "生成中..." :
-                 "🔄 图转视频 · wan2.7-i2v"}
+                 "🔄 图转视频 · " + videoModel}
               </button>
 
               {/* Running indicator */}

@@ -90,7 +90,7 @@ export default function ExportPanel({ project, projectId }) {
     md += `## 模型配置建议\n\n`;
     md += `| 配置项 | 推荐值 |\n|------|------|\n`;
     md += `| 推荐生图模型 | wan2.7-image-pro / qwen-image-2.0-pro |\n`;
-    md += `| 推荐视频模型 | wan2.7-t2v / wan2.7-i2v-2026-04-25 |\n`;
+    md += `| 推荐视频模型 | happyhorse-1.0-video（万能） / wan2.7 回退 |\n`;
     md += `| 推荐画面比例 | ${plan?.aspect_ratio || "9:16"} |\n`;
     md += `| 推荐分辨率 | 1080P |\n`;
     md += `| 建议单镜时长 | 5s |\n`;

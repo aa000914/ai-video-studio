@@ -6,7 +6,7 @@ export async function GET(req) {
     const projectId = searchParams.get("project_id");
 
     if (!projectId) {
-      return Response.json({ error: "缺少project_id" }, { status: 400 });
+      return Response.json({ ok: false, error: "缺少project_id" }, { status: 400 });
     }
 
     const supabase = getServiceClient();
@@ -17,9 +17,10 @@ export async function GET(req) {
       .order("created_at", { ascending: true });
 
     if (error) throw error;
-    return Response.json({ data });
+    return Response.json({ ok: true, data });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    console.error("[CHARACTERS_GET]", err.message);
+    return Response.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
 
@@ -27,6 +28,8 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const supabase = getServiceClient();
+
+    // Ensure metadata is preserved as-is (safePayload will include it)
     const clean = await safePayload("characters", body);
     const { data, error } = await supabase
       .from("characters")
@@ -35,8 +38,10 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
-    return Response.json({ data }, { status: 201 });
+    console.log("[CHARACTERS_POST_OK]", data.id, data.name);
+    return Response.json({ ok: true, data }, { status: 201 });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    console.error("[CHARACTERS_POST]", err.message);
+    return Response.json({ ok: false, error: err.message }, { status: 500 });
   }
 }

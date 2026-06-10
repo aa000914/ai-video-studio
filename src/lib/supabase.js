@@ -29,6 +29,7 @@ const FALLBACK_COLUMNS = {
     "prompt_front", "prompt_back", "prompt_overhead",
     "subject_image_url", "reference_url", "subject_type", "voice_name",
     "locked_traits", "usage_count", "notes", "created_at",
+    "metadata",
   ]),
   scenes: new Set([
     "id", "project_id", "name", "location", "time_period",
@@ -36,6 +37,7 @@ const FALLBACK_COLUMNS = {
     "prompt_front", "prompt_back", "prompt_overhead",
     "subject_image_url", "reference_url", "subject_type",
     "locked_traits", "usage_count", "notes", "created_at",
+    "metadata",
   ]),
   shots: new Set([
     "id", "project_id", "shot_number", "shot_index", "duration", "scene_name",

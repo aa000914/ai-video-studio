@@ -14,10 +14,10 @@ export async function PUT(req, { params }) {
       throw error;
     }
     console.log("[CHARACTERS_PUT_OK]", id, Object.keys(clean).join(","));
-    return Response.json({ data });
+    return Response.json({ ok: true, data });
   } catch (err) {
     console.error("[CHARACTERS_PUT_FAILED]", err.message);
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
 
@@ -27,8 +27,10 @@ export async function DELETE(req, { params }) {
     const supabase = getServiceClient();
     const { error } = await supabase.from("characters").delete().eq("id", id);
     if (error) throw error;
-    return Response.json({ success: true });
+    console.log("[CHARACTERS_DELETE_OK]", id);
+    return Response.json({ ok: true, data: { id } });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    console.error("[CHARACTERS_DELETE]", err.message);
+    return Response.json({ ok: false, error: err.message }, { status: 500 });
   }
 }

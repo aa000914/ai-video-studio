@@ -47,8 +47,8 @@ export async function POST(req) {
     if (!resolvedModel) {
       switch (type) {
         case "image":  resolvedModel = process.env.QWEN_IMAGE_MODEL || "wan2.7-image-pro"; break;
-        case "i2v":    resolvedModel = process.env.WAN_I2V_MODEL || "wan2.7-i2v-2026-04-25"; break;
-        case "t2v":    resolvedModel = process.env.WAN_T2V_MODEL || "wan2.7-t2v"; break;
+        case "i2v":    resolvedModel = process.env.HAPPYHORSE_VIDEO_MODEL || process.env.WAN_I2V_MODEL || "happyhorse-1.0-video"; break;
+        case "t2v":    resolvedModel = process.env.HAPPYHORSE_VIDEO_MODEL || process.env.WAN_T2V_MODEL || "happyhorse-1.0-video"; break;
         case "video_edit": resolvedModel = process.env.WAN_VIDEO_EDIT_MODEL || "wan2.7-videoedit"; break;
         default:       resolvedModel = "wan2.7-image-pro";
       }
@@ -81,11 +81,11 @@ export async function POST(req) {
           result = await submitImageTask(prompt.trim(), { size: size || "1024*1024", n: 1, negative_prompt: negative_prompt || "", ref_image: imageUrl || "" });
           break;
         case "t2v":
-          result = await submitTextToVideo(prompt.trim(), { resolution: resolution || "720P", ratio: "16:9", duration: normalizeDuration(duration), negative_prompt });
+          result = await submitTextToVideo(prompt.trim(), { model: resolvedModel, resolution: resolution || "720P", ratio: "16:9", duration: normalizeDuration(duration), negative_prompt });
           break;
         case "i2v":
           if (!imageUrl) throw new Error("图生视频需要 imageUrl");
-          result = await submitImageToVideo(imageUrl, prompt?.trim() || "Generate video from this image", { resolution: resolution || "720P", duration: normalizeDuration(duration) });
+          result = await submitImageToVideo(imageUrl, prompt?.trim() || "Generate video from this image", { model: resolvedModel, resolution: resolution || "720P", duration: normalizeDuration(duration) });
           break;
         case "video_edit":
           if (!input_video_url) throw new Error("视频编辑需要 input_video_url");

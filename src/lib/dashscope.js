@@ -241,7 +241,65 @@ function normalizeDuration(duration) {
 }
 
 /**
+ * HappyHorse 全能视频模型提交
+ *
+ * Qwen 的全能视频模型（happyhorse），支持文生视频和图生视频，
+ * 按 input 中是否包含 media 自动判断任务类型。
+ *
+ * 后续切换 Seedance 2.0：换模型名 + 调整参数格式即可（此函数作为抽象层）。
+ *
+ * 模型选择策略：
+ * 1. 优先使用 env HAPPYHORSE_VIDEO_MODEL（默认 happyhorse-1.0-video）
+ * 2. 回退：env WAN_I2V_MODEL / WAN_T2V_MODEL
+ *
+ * DashScope 请求体：
+ * {
+ *   "model": "happyhorse-1.0-video",
+ *   "input": { "prompt": prompt, "media"?: [{ "type": "first_frame", "url": imageUrl }] },
+ *   "parameters": { "resolution", "duration": 整数, "prompt_extend": true, "watermark": false }
+ * }
+ *
+ * @param {string} prompt - 视频提示词
+ * @param {object} options
+ * @param {string} [options.imageUrl] - 图生视频时的参考图 URL（留空=文生视频）
+ * @param {string} [options.resolution] - "720P" | "1080P"
+ * @param {number|string} [options.duration] - 秒数或 "5s" 格式
+ * @param {string} [options.ratio] - 画面比例，文生视频时有效
+ * @param {string} [options.negative_prompt]
+ * @param {string} [options.model] - 显式指定模型名（未来切换 Seedance 用）
+ * @param {boolean} [options.promptExtend] - 是否自动扩写提示词
+ * @returns {Promise<{task_id: string}>}
+ */
+export async function submitHappyHorseVideo(prompt, options = {}) {
+  const model = options.model || process.env.HAPPYHORSE_VIDEO_MODEL || "happyhorse-1.0-video";
+  const isI2V = !!options.imageUrl;
+
+  const input = { prompt };
+  if (isI2V) {
+    input.media = [{ type: "first_frame", url: options.imageUrl }];
+  }
+
+  const params = {
+    resolution: options.resolution || "720P",
+    duration: normalizeDuration(options.duration),
+    prompt_extend: options.promptExtend !== false, // default true
+    watermark: false,
+  };
+  if (!isI2V && options.ratio) params.ratio = options.ratio;
+  if (options.negative_prompt) params.negative_prompt = options.negative_prompt;
+
+  console.log(`[HAPPYHORSE] model=${model} type=${isI2V ? "i2v" : "t2v"} prompt_len=${prompt?.length || 0}`);
+
+  return submitTask("video-generation", input, params, model);
+}
+
+/**
  * 提交文生视频任务
+ *
+ * 策略（按优先级）：
+ * 1. 如果 options.model 明确指定 → 直接用该模型
+ * 2. HappyHorse 全能模型（免费额度）
+ * 3. wan2.7-t2v（免费额度回退）
  *
  * DashScope 请求体：
  * {
@@ -251,6 +309,30 @@ function normalizeDuration(duration) {
  * }
  */
 export async function submitTextToVideo(prompt, options = {}) {
+  // 用户明确指定了模型 → 直接使用
+  if (options.model) {
+    if (options.model.includes("happyhorse")) {
+      return await submitHappyHorseVideo(prompt, { ...options, imageUrl: "" });
+    }
+    // WAN 或其他模型，直接提交
+    const params = {
+      resolution: options.resolution || "720P",
+      ratio: options.ratio || "16:9",
+      duration: normalizeDuration(options.duration),
+      prompt_extend: true,
+      watermark: false,
+    };
+    if (options.negative_prompt) params.negative_prompt = options.negative_prompt;
+    return submitTask("video-generation", { prompt }, params, options.model);
+  }
+
+  // 未指定模型 → HappyHorse 优先，WAN 回退
+  try {
+    return await submitHappyHorseVideo(prompt, { ...options, imageUrl: "" });
+  } catch (err) {
+    console.warn("happyhorse t2v failed, falling back to wan2.7-t2v:", err.message);
+  }
+
   const model = process.env.WAN_T2V_MODEL || "wan2.7-t2v";
   const params = {
     resolution: options.resolution || "720P",
@@ -266,6 +348,11 @@ export async function submitTextToVideo(prompt, options = {}) {
 /**
  * 提交图生视频任务
  *
+ * 策略（按优先级）：
+ * 1. 如果 options.model 明确指定 → 直接用该模型
+ * 2. HappyHorse 全能模型（免费额度）
+ * 3. wan2.7-i2v（免费额度回退）
+ *
  * DashScope 请求体：
  * {
  *   "model": WAN_I2V_MODEL,
@@ -277,6 +364,29 @@ export async function submitTextToVideo(prompt, options = {}) {
  * }
  */
 export async function submitImageToVideo(imageUrl, prompt, options = {}) {
+  // 用户明确指定了模型 → 直接使用
+  if (options.model) {
+    if (options.model.includes("happyhorse")) {
+      return await submitHappyHorseVideo(prompt, { ...options, imageUrl });
+    }
+    // WAN 或其他模型，直接提交
+    const input = { prompt, media: [{ type: "first_frame", url: imageUrl }] };
+    const params = {
+      resolution: options.resolution || "720P",
+      duration: normalizeDuration(options.duration),
+      prompt_extend: true,
+      watermark: false,
+    };
+    return submitTask("video-generation", input, params, options.model);
+  }
+
+  // 未指定模型 → HappyHorse 优先，WAN 回退
+  try {
+    return await submitHappyHorseVideo(prompt, { ...options, imageUrl });
+  } catch (err) {
+    console.warn("happyhorse i2v failed, falling back to wan2.7-i2v:", err.message);
+  }
+
   const model = process.env.WAN_I2V_MODEL || "wan2.7-i2v-2026-04-25";
   const input = {
     prompt,
